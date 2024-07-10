@@ -2,11 +2,6 @@ package si.uni_lj.fe.erk.roadsigns
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.Paint
-import android.graphics.RectF
-import android.graphics.Typeface
 import android.util.Log
 import org.tensorflow.lite.DataType
 import org.tensorflow.lite.Interpreter
@@ -63,6 +58,9 @@ class TFLiteModelLoader(private val context: Context) {
             tensorHeight = inputShape?.get(2) ?: 0
             numChannel = outputShape?.get(1) ?: 0
             numElements = outputShape?.get(2) ?: 0
+
+            Log.d("TFLiteModelLoader", "Model Input Shape: ${inputShape?.joinToString()}")
+            Log.d("TFLiteModelLoader", "Model Output Shape: ${outputShape?.joinToString()}")
         } catch (e: Exception) {
             Log.e("TFLiteModelLoader", "Error initializing interpreter", e)
         }
@@ -73,7 +71,7 @@ class TFLiteModelLoader(private val context: Context) {
             val inputStream: InputStream = context.assets.open(labelPath)
             val reader = BufferedReader(InputStreamReader(inputStream))
             var line: String? = reader.readLine()
-            while (line != null && line.isNotEmpty()) {
+            while (!line.isNullOrEmpty()) {
                 labels.add(line)
                 line = reader.readLine()
             }
@@ -86,13 +84,19 @@ class TFLiteModelLoader(private val context: Context) {
 
     fun detect(bitmap: Bitmap): List<BoundingBox> {
         val resizedBitmap = Bitmap.createScaledBitmap(bitmap, tensorWidth, tensorHeight, false)
+        Log.d("TFLiteModelLoader", "Resized Bitmap size: ${resizedBitmap.width}x${resizedBitmap.height}")
+
         val tensorImage = TensorImage(DataType.FLOAT32)
         tensorImage.load(resizedBitmap)
         val processedImage = imageProcessor.process(tensorImage)
         val imageBuffer = processedImage.buffer
 
+        Log.d("TFLiteModelLoader", "Input Tensor Buffer: ${imageBuffer.array().joinToString()}")
+
         val output = TensorBuffer.createFixedSize(intArrayOf(1, numChannel, numElements), OUTPUT_IMAGE_TYPE)
         interpreter?.run(imageBuffer, output.buffer)
+
+        Log.d("TFLiteModelLoader", "Raw Output Tensor: ${output.floatArray.joinToString()}")
 
         return bestBox(output.floatArray) ?: listOf()
     }
@@ -141,7 +145,9 @@ class TFLiteModelLoader(private val context: Context) {
 
         if (boundingBoxes.isEmpty()) return null
 
-        return applyNMS(boundingBoxes)
+        val nmsBoxes = applyNMS(boundingBoxes)
+        Log.d("TFLiteModelLoader", "Post-NMS Bounding Boxes: $nmsBoxes")
+        return nmsBoxes
     }
 
     private fun applyNMS(boxes: List<BoundingBox>): MutableList<BoundingBox> {
@@ -191,4 +197,3 @@ class TFLiteModelLoader(private val context: Context) {
         val clsName: String
     )
 }
-

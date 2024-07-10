@@ -26,7 +26,6 @@ import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.tensorflow.lite.support.image.TensorImage
 import si.uni_lj.fe.erk.roadsigns.ui.theme.RoadSignsTheme
 import java.io.ByteArrayOutputStream
 import java.util.concurrent.ExecutorService
@@ -108,6 +107,7 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
                         image.toBitmapCustom()
                     }
                     if (bitmap != null) {
+                        Log.d("CameraPreviewScreen", "Bitmap size: ${bitmap.width}x${bitmap.height}")
                         withContext(Dispatchers.Default) {
                             detectObjects(bitmap, tfliteModelLoader) { results ->
                                 detectionResults = results
@@ -155,7 +155,7 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
                         "${result.clsName} ${"%.2f".format(result.cnf)}",
                         left,
                         top - 10,
-                        android.graphics.Paint().apply {
+                        Paint().apply {
                             color = android.graphics.Color.RED
                             textSize = 30f
                         }
@@ -194,4 +194,3 @@ fun detectObjects(bitmap: Bitmap, modelLoader: TFLiteModelLoader, onResults: (Li
     onResults(results)
 }
 
-// TFLiteModelLoader class remains the same as provided above
