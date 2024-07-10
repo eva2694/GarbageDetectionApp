@@ -1,8 +1,12 @@
 package si.uni_lj.fe.erk.roadsigns
 
 import android.Manifest
+import android.app.ActivityManager
+import android.content.Context
 import android.graphics.*
 import android.os.Bundle
+import android.os.Debug
+import android.os.SystemClock
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -12,15 +16,17 @@ import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.Dispatchers
@@ -88,6 +94,12 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
     var detectionResults by remember { mutableStateOf<List<TFLiteModelLoader.BoundingBox>>(listOf()) }
     val coroutineScope = rememberCoroutineScope()
+    val startTime = remember { mutableLongStateOf(0L) }
+    val endTime = remember { mutableLongStateOf(0L) }
+    val cpuUsage = remember { mutableLongStateOf(0L) }
+    val memoryInfo = remember { mutableStateOf<ActivityManager.MemoryInfo?>(null) }
+    val frameLatency = remember { mutableLongStateOf(0L) }
+    val previousDetectionTime = remember { mutableLongStateOf(SystemClock.elapsedRealtimeNanos()) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         AndroidView(factory = { ctx ->
@@ -109,8 +121,19 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
                     if (bitmap != null) {
                         Log.d("CameraPreviewScreen", "Bitmap size: ${bitmap.width}x${bitmap.height}")
                         withContext(Dispatchers.Default) {
+                            startTime.longValue = SystemClock.elapsedRealtimeNanos()
+                            val cpuStartTime = Debug.threadCpuTimeNanos()
                             detectObjects(bitmap, tfliteModelLoader) { results ->
                                 detectionResults = results
+                                endTime.longValue = SystemClock.elapsedRealtimeNanos()
+                                val cpuEndTime = Debug.threadCpuTimeNanos()
+                                cpuUsage.longValue = (cpuEndTime - cpuStartTime) / 1_000_000
+                                val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+                                val memInfo = ActivityManager.MemoryInfo()
+                                activityManager.getMemoryInfo(memInfo)
+                                memoryInfo.value = memInfo
+                                frameLatency.longValue = (SystemClock.elapsedRealtimeNanos() - previousDetectionTime.longValue) / 1_000_000
+                                previousDetectionTime.longValue = SystemClock.elapsedRealtimeNanos()
                             }
                         }
                     } else {
@@ -136,31 +159,57 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
             previewView
         }, modifier = Modifier.fillMaxSize())
 
-        detectionResults.forEach { result ->
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val scaleX = size.width
-                val scaleY = size.height
-                val left = result.x1 * scaleX
-                val top = result.y1 * scaleY
-                val right = result.x2 * scaleX
-                val bottom = result.y2 * scaleY
-                drawRect(
-                    color = Color.Red,
-                    topLeft = androidx.compose.ui.geometry.Offset(left, top),
-                    size = androidx.compose.ui.geometry.Size(right - left, bottom - top),
-                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f)
-                )
-                drawContext.canvas.nativeCanvas.apply {
-                    drawText(
-                        "${result.clsName} ${"%.2f".format(result.cnf)}",
-                        left,
-                        top - 10,
-                        Paint().apply {
-                            color = android.graphics.Color.RED
-                            textSize = 30f
-                        }
+        Box(modifier = Modifier.fillMaxSize()) {
+            detectionResults.forEach { result ->
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val scaleX = size.width * 1.7
+                    val scaleY = size.height * 0.7
+
+                    val left = result.x1 * scaleX
+                    val top = result.y1 * scaleY
+                    val right = result.x2 * scaleX
+                    val bottom = result.y2 * scaleY
+
+                    val previewAspectRatio = scaleX / scaleY
+                    val modelAspectRatio = 1.0f
+                    Log.d("CameraPreviewScreen","Preview aspect ratio = ${previewAspectRatio}, Model aspect ratio = $modelAspectRatio")
+
+                    drawRect(
+                        color = Color.Red,
+                        topLeft = androidx.compose.ui.geometry.Offset(left.toFloat(), top.toFloat()),
+                        size = androidx.compose.ui.geometry.Size((right - left).toFloat(),
+                            (bottom - top).toFloat()
+                        ),
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f)
                     )
+                    drawContext.canvas.nativeCanvas.apply {
+                        drawText(
+                            "${result.clsName} ${"%.2f".format(result.cnf)}",
+                            left.toFloat(),
+                            (top - 10).toFloat(),
+                            Paint().apply {
+                                color = android.graphics.Color.RED
+                                textSize = 30f
+                            }
+                        )
+                    }
                 }
+            }
+
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(16.dp)
+            ) {
+                val detectionTime = (endTime.longValue - startTime.longValue) / -1_000_000 // in ms
+                val usedMemory = memoryInfo.value?.availMem?.div(1024 * 1024)
+                val totalMemory = memoryInfo.value?.totalMem?.div(1024 * 1024)
+                Text("Model: YOLOv8s", fontWeight = FontWeight.Bold, color = Color.Green)
+                Text("Detection Time: $detectionTime ms", fontWeight = FontWeight.Bold, color = Color.Green)
+                Text("CPU Time: ${cpuUsage.longValue} ms", fontWeight = FontWeight.Bold, color = Color.Green)
+                Text("Frame Latency: ${frameLatency.longValue} ms", fontWeight = FontWeight.Bold, color = Color.Green)
+                Text("Available Memory: $usedMemory MB", fontWeight = FontWeight.Bold, color = Color.Green)
+                Text("Total Memory: $totalMemory MB", fontWeight = FontWeight.Bold, color = Color.Green)
             }
         }
     }
@@ -190,7 +239,6 @@ fun ImageProxy.toBitmapCustom(): Bitmap? {
 
 fun detectObjects(bitmap: Bitmap, modelLoader: TFLiteModelLoader, onResults: (List<TFLiteModelLoader.BoundingBox>) -> Unit) {
     val results = modelLoader.detect(bitmap)
-    Log.d("detectObjects", "Detection Results: $results") // Debug log for detection results
+    Log.d("detectObjects", "Detection Results: $results")
     onResults(results)
 }
-
