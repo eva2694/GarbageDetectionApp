@@ -1,4 +1,4 @@
-stop
-speedlimit
-trafficlight
 crosswalk
+speedlimit
+stop
+trafficlight

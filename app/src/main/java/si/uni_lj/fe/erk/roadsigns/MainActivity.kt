@@ -1,11 +1,7 @@
 package si.uni_lj.fe.erk.roadsigns
 
 import android.Manifest
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.ImageFormat
-import android.graphics.Rect
-import android.graphics.YuvImage
+import android.graphics.*
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -27,6 +23,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.tensorflow.lite.support.image.TensorImage
 import si.uni_lj.fe.erk.roadsigns.ui.theme.RoadSignsTheme
 import java.io.ByteArrayOutputStream
@@ -88,8 +87,8 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val tfliteModelLoader = remember { TFLiteModelLoader(context) }
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
-    var bitmapBuffer by remember { mutableStateOf<Bitmap?>(null) }
     var detectionResults by remember { mutableStateOf<List<TFLiteModelLoader.BoundingBox>>(listOf()) }
+    val coroutineScope = rememberCoroutineScope()
 
     Box(modifier = Modifier.fillMaxSize()) {
         AndroidView(factory = { ctx ->
@@ -100,27 +99,26 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
 
             val imageAnalysis = ImageAnalysis.Builder()
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
+                .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
                 .build()
 
             imageAnalysis.setAnalyzer(cameraExecutor) { image ->
-                try {
-                    val bitmap = image.toBitmapCustom()
+                coroutineScope.launch {
+                    val bitmap = withContext(Dispatchers.IO) {
+                        image.toBitmapCustom()
+                    }
                     if (bitmap != null) {
-                        detectObjects(bitmap, tfliteModelLoader) { results ->
-                            detectionResults = results
+                        withContext(Dispatchers.Default) {
+                            detectObjects(bitmap, tfliteModelLoader) { results ->
+                                detectionResults = results
+                            }
                         }
                     } else {
                         Log.e("ImageAnalysis", "Bitmap conversion failed")
                     }
-                } catch (e: Exception) {
-                    Log.e("ImageAnalysis", "Error during image analysis", e)
-                } finally {
                     image.close()
                 }
             }
-
-
 
             val cameraProvider = cameraProviderFuture.get()
             try {
@@ -163,17 +161,6 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
 }
 
 fun ImageProxy.toBitmapCustom(): Bitmap? {
-    if (format != ImageFormat.YUV_420_888) {
-        Log.e("toBitmapCustom", "Unsupported image format: $format")
-        return null
-    }
-
-    val planes = planes
-    if (planes.size < 3) {
-        Log.e("toBitmapCustom", "Unexpected planes size: ${planes.size}")
-        return null
-    }
-
     val yBuffer = planes[0].buffer
     val uBuffer = planes[1].buffer
     val vBuffer = planes[2].buffer
@@ -195,9 +182,8 @@ fun ImageProxy.toBitmapCustom(): Bitmap? {
     return BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
 }
 
-
-
 fun detectObjects(bitmap: Bitmap, modelLoader: TFLiteModelLoader, onResults: (List<TFLiteModelLoader.BoundingBox>) -> Unit) {
     val results = modelLoader.detect(bitmap)
     onResults(results)
 }
+
