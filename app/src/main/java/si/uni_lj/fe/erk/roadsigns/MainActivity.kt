@@ -138,17 +138,23 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
 
         detectionResults.forEach { result ->
             Canvas(modifier = Modifier.fillMaxSize()) {
+                val scaleX = size.width
+                val scaleY = size.height
+                val left = result.x1 * scaleX
+                val top = result.y1 * scaleY
+                val right = result.x2 * scaleX
+                val bottom = result.y2 * scaleY
                 drawRect(
                     color = Color.Red,
-                    topLeft = androidx.compose.ui.geometry.Offset(result.x1 * size.width, result.y1 * size.height),
-                    size = androidx.compose.ui.geometry.Size((result.x2 - result.x1) * size.width, (result.y2 - result.y1) * size.height),
+                    topLeft = androidx.compose.ui.geometry.Offset(left, top),
+                    size = androidx.compose.ui.geometry.Size(right - left, bottom - top),
                     style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f)
                 )
                 drawContext.canvas.nativeCanvas.apply {
                     drawText(
                         "${result.clsName} ${"%.2f".format(result.cnf)}",
-                        result.x1 * size.width,
-                        result.y1 * size.height - 10,
+                        left,
+                        top - 10,
                         android.graphics.Paint().apply {
                             color = android.graphics.Color.RED
                             textSize = 30f
@@ -184,6 +190,8 @@ fun ImageProxy.toBitmapCustom(): Bitmap? {
 
 fun detectObjects(bitmap: Bitmap, modelLoader: TFLiteModelLoader, onResults: (List<TFLiteModelLoader.BoundingBox>) -> Unit) {
     val results = modelLoader.detect(bitmap)
+    Log.d("detectObjects", "Detection Results: $results") // Debug log for detection results
     onResults(results)
 }
 
+// TFLiteModelLoader class remains the same as provided above
