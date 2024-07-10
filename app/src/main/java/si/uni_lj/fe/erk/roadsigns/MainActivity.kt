@@ -94,12 +94,15 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
     var detectionResults by remember { mutableStateOf<List<TFLiteModelLoader.BoundingBox>>(listOf()) }
     val coroutineScope = rememberCoroutineScope()
-    val startTime = remember { mutableLongStateOf(0L) }
-    val endTime = remember { mutableLongStateOf(0L) }
-    val cpuUsage = remember { mutableLongStateOf(0L) }
+    val startTime = remember { mutableStateOf(0L) }
+    val endTime = remember { mutableStateOf(0L) }
+    val cpuUsage = remember { mutableStateOf(0L) }
     val memoryInfo = remember { mutableStateOf<ActivityManager.MemoryInfo?>(null) }
-    val frameLatency = remember { mutableLongStateOf(0L) }
-    val previousDetectionTime = remember { mutableLongStateOf(SystemClock.elapsedRealtimeNanos()) }
+    val frameLatency = remember { mutableStateOf(0L) }
+    val previousDetectionTime = remember { mutableStateOf(SystemClock.elapsedRealtimeNanos()) }
+    val totalInferenceTime = remember { mutableStateOf(0L) }
+    val inferenceCount = remember { mutableStateOf(0) }
+    val averageConfidence = remember { mutableStateOf(0.0) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         AndroidView(factory = { ctx ->
@@ -121,19 +124,25 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
                     if (bitmap != null) {
                         Log.d("CameraPreviewScreen", "Bitmap size: ${bitmap.width}x${bitmap.height}")
                         withContext(Dispatchers.Default) {
-                            startTime.longValue = SystemClock.elapsedRealtimeNanos()
+                            startTime.value = SystemClock.elapsedRealtimeNanos()
                             val cpuStartTime = Debug.threadCpuTimeNanos()
                             detectObjects(bitmap, tfliteModelLoader) { results ->
                                 detectionResults = results
-                                endTime.longValue = SystemClock.elapsedRealtimeNanos()
+                                endTime.value = SystemClock.elapsedRealtimeNanos()
                                 val cpuEndTime = Debug.threadCpuTimeNanos()
-                                cpuUsage.longValue = (cpuEndTime - cpuStartTime) / 1_000_000
+
+
+                                cpuUsage.value = (cpuEndTime - cpuStartTime) / 1_000_000
                                 val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
                                 val memInfo = ActivityManager.MemoryInfo()
                                 activityManager.getMemoryInfo(memInfo)
                                 memoryInfo.value = memInfo
-                                frameLatency.longValue = (SystemClock.elapsedRealtimeNanos() - previousDetectionTime.longValue) / 1_000_000
-                                previousDetectionTime.longValue = SystemClock.elapsedRealtimeNanos()
+                                frameLatency.value = (SystemClock.elapsedRealtimeNanos() - previousDetectionTime.value) / 1_000_000
+                                previousDetectionTime.value = SystemClock.elapsedRealtimeNanos()
+
+                                totalInferenceTime.value += (endTime.value - startTime.value)
+                                inferenceCount.value += 1
+                                averageConfidence.value = results.map { it.cnf }.average()
                             }
                         }
                     } else {
@@ -201,15 +210,20 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
                     .align(Alignment.BottomCenter)
                     .padding(16.dp)
             ) {
-                val detectionTime = (endTime.longValue - startTime.longValue) / -1_000_000 // in ms
+                val detectionTime = (endTime.value - startTime.value) / -1_000_000 // in ms
                 val usedMemory = memoryInfo.value?.availMem?.div(1024 * 1024)
                 val totalMemory = memoryInfo.value?.totalMem?.div(1024 * 1024)
-                Text("Model: YOLOv8s", fontWeight = FontWeight.Bold, color = Color.Green)
-                Text("Detection Time: $detectionTime ms", fontWeight = FontWeight.Bold, color = Color.Green)
-                Text("CPU Time: ${cpuUsage.longValue} ms", fontWeight = FontWeight.Bold, color = Color.Green)
-                Text("Frame Latency: ${frameLatency.longValue} ms", fontWeight = FontWeight.Bold, color = Color.Green)
-                Text("Available Memory: $usedMemory MB", fontWeight = FontWeight.Bold, color = Color.Green)
-                Text("Total Memory: $totalMemory MB", fontWeight = FontWeight.Bold, color = Color.Green)
+                val averageInferenceTime = if (inferenceCount.value > 0) totalInferenceTime.value / inferenceCount.value / 1_000_000 else 0L
+                val fps = if (inferenceCount.value > 0) 100000 / averageInferenceTime else 0
+
+                Text("Model: YOLOv8s (float32, 44MB)", fontWeight = FontWeight.Bold, color = Color.Green)
+                Text("Detection Time: ${detectionTime} ms", fontWeight = FontWeight.Bold, color = Color.Green)
+                Text("CPU Time: ${cpuUsage.value} ms", fontWeight = FontWeight.Bold, color = Color.Green)
+                Text("Frame Latency: ${frameLatency.value} ms", fontWeight = FontWeight.Bold, color = Color.Green)
+                Text("FPS: $fps", fontWeight = FontWeight.Bold, color = Color.Green)
+                Text("Average Confidence: ${"%.2f".format(averageConfidence.value)}", fontWeight = FontWeight.Bold, color = Color.Green)
+                Text("Available Memory: ${usedMemory} MB", fontWeight = FontWeight.Bold, color = Color.Green)
+                Text("Total Memory: ${totalMemory} MB", fontWeight = FontWeight.Bold, color = Color.Green)
             }
         }
     }
@@ -239,6 +253,7 @@ fun ImageProxy.toBitmapCustom(): Bitmap? {
 
 fun detectObjects(bitmap: Bitmap, modelLoader: TFLiteModelLoader, onResults: (List<TFLiteModelLoader.BoundingBox>) -> Unit) {
     val results = modelLoader.detect(bitmap)
-    Log.d("detectObjects", "Detection Results: $results")
+    Log.d("detectObjects", "Detection Results: $results") // Debug log for detection results
     onResults(results)
 }
+
