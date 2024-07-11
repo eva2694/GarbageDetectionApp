@@ -34,6 +34,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import si.uni_lj.fe.erk.roadsigns.ui.theme.RoadSignsTheme
 import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileWriter
+import java.io.IOException
+import java.text.SimpleDateFormat
+import java.util.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -103,6 +108,7 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
     val totalInferenceTime = remember { mutableStateOf(0L) }
     val inferenceCount = remember { mutableStateOf(0) }
     val averageConfidence = remember { mutableStateOf(0.0) }
+    val fps = remember { mutableStateOf(0.0) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         AndroidView(factory = { ctx ->
@@ -131,7 +137,6 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
                                 endTime.value = SystemClock.elapsedRealtimeNanos()
                                 val cpuEndTime = Debug.threadCpuTimeNanos()
 
-
                                 cpuUsage.value = (cpuEndTime - cpuStartTime) / 1_000_000
                                 val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
                                 val memInfo = ActivityManager.MemoryInfo()
@@ -143,6 +148,24 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
                                 totalInferenceTime.value += (endTime.value - startTime.value)
                                 inferenceCount.value += 1
                                 averageConfidence.value = results.map { it.cnf }.average()
+
+                                val averageInferenceTime = if (inferenceCount.value > 0) totalInferenceTime.value / inferenceCount.value / 1_000_000 else 0L // 5413
+                                val framesPerSecond = if (averageInferenceTime > 0) 1000F / averageInferenceTime.toFloat() else 0F // 1000 / 5413
+                                fps.value = framesPerSecond.toDouble()
+
+                                saveDataToCsv(
+                                    model = "YOLOv8s",
+                                    datatype = "float32",
+                                    modelSize = "44MB",
+                                    detectionTime = (endTime.value - startTime.value) / 1_000_000,
+                                    cpuTime = cpuUsage.value,
+                                    frameLatency = frameLatency.value,
+                                    fps = framesPerSecond,
+                                    avgConfidence = averageConfidence.value,
+                                    usedMemory = memInfo.availMem / (1024 * 1024),
+                                    totalMemory = memInfo.totalMem / (1024 * 1024),
+                                    context = context
+                                )
                             }
                         }
                     } else {
@@ -171,8 +194,8 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
         Box(modifier = Modifier.fillMaxSize()) {
             detectionResults.forEach { result ->
                 Canvas(modifier = Modifier.fillMaxSize()) {
-                    val scaleX = size.width * 1.7
-                    val scaleY = size.height * 0.7
+                    val scaleX = size.width / 0.49632353 * 0.9
+                    val scaleY = size.height * 0.9
 
                     val left = result.x1 * scaleX
                     val top = result.y1 * scaleY
@@ -210,17 +233,17 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
                     .align(Alignment.BottomCenter)
                     .padding(16.dp)
             ) {
-                val detectionTime = (endTime.value - startTime.value) / -1_000_000 // in ms
+                val dT = (endTime.value - startTime.value) / -1_000_000 // in ms
+                var detectionTime = 0
+                if(dT < 1000) detectionTime = dT.toInt()
                 val usedMemory = memoryInfo.value?.availMem?.div(1024 * 1024)
                 val totalMemory = memoryInfo.value?.totalMem?.div(1024 * 1024)
-                val averageInferenceTime = if (inferenceCount.value > 0) totalInferenceTime.value / inferenceCount.value / 1_000_000 else 0L
-                val fps = if (inferenceCount.value > 0) 100000 / averageInferenceTime else 0
 
                 Text("Model: YOLOv8s (float32, 44MB)", fontWeight = FontWeight.Bold, color = Color.Green)
                 Text("Detection Time: ${detectionTime} ms", fontWeight = FontWeight.Bold, color = Color.Green)
                 Text("CPU Time: ${cpuUsage.value} ms", fontWeight = FontWeight.Bold, color = Color.Green)
                 Text("Frame Latency: ${frameLatency.value} ms", fontWeight = FontWeight.Bold, color = Color.Green)
-                Text("FPS: $fps", fontWeight = FontWeight.Bold, color = Color.Green)
+                Text("FPS: ${"%.2f".format(fps.value)}", fontWeight = FontWeight.Bold, color = Color.Green)
                 Text("Average Confidence: ${"%.2f".format(averageConfidence.value)}", fontWeight = FontWeight.Bold, color = Color.Green)
                 Text("Available Memory: ${usedMemory} MB", fontWeight = FontWeight.Bold, color = Color.Green)
                 Text("Total Memory: ${totalMemory} MB", fontWeight = FontWeight.Bold, color = Color.Green)
@@ -253,7 +276,32 @@ fun ImageProxy.toBitmapCustom(): Bitmap? {
 
 fun detectObjects(bitmap: Bitmap, modelLoader: TFLiteModelLoader, onResults: (List<TFLiteModelLoader.BoundingBox>) -> Unit) {
     val results = modelLoader.detect(bitmap)
-    Log.d("detectObjects", "Detection Results: $results") // Debug log for detection results
     onResults(results)
 }
 
+fun saveDataToCsv(
+    model: String,
+    datatype: String,
+    modelSize: String,
+    detectionTime: Long,
+    cpuTime: Long,
+    frameLatency: Long,
+    fps: Float,
+    avgConfidence: Double,
+    usedMemory: Long,
+    totalMemory: Long,
+    context: Context
+) {
+    val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+    val fileName = "detection_data.csv"
+    val file = File(context.getExternalFilesDir(null), fileName)
+
+    try {
+        val writer = FileWriter(file, true)
+        writer.append("$timestamp,$model,$datatype,$modelSize,$detectionTime,$cpuTime,$frameLatency,${"%.2f".format(fps)},${"%.2f".format(avgConfidence)},$usedMemory,$totalMemory\n")
+        writer.flush()
+        writer.close()
+    } catch (e: IOException) {
+        e.printStackTrace()
+    }
+}
