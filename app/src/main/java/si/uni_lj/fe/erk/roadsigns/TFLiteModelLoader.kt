@@ -3,6 +3,7 @@ package si.uni_lj.fe.erk.roadsigns
 import android.content.Context
 import android.graphics.Bitmap
 import android.util.Log
+import com.google.android.gms.tflite.gpu.GpuDelegate
 import org.tensorflow.lite.DataType
 import org.tensorflow.lite.Interpreter
 import org.tensorflow.lite.support.common.FileUtil
@@ -51,6 +52,9 @@ class TFLiteModelLoader(private val context: Context) {
             val model = FileUtil.loadMappedFile(context, modelPath)
             val options = Interpreter.Options()
             options.numThreads = 4
+
+
+
             interpreter = Interpreter(model, options)
 
             val inputShape = interpreter?.getInputTensor(0)?.shape()

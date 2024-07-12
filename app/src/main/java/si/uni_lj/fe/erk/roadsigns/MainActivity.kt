@@ -117,6 +117,9 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
                 preview.surfaceProvider = previewView.surfaceProvider
             }
 
+            Log.d("CameraPreviewScreen", "ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST : ${ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST}")
+            Log.d("CameraPreviewScreen", "ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888 : ${ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888}")
+
             val imageAnalysis = ImageAnalysis.Builder()
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
