@@ -88,7 +88,7 @@ class TFLiteModelLoader(private val context: Context) {
         val resizedBitmap = Bitmap.createScaledBitmap(bitmap, tensorWidth, tensorHeight, false)
         Log.d("TFLiteModelLoader", "Resized Bitmap size: ${resizedBitmap.width}x${resizedBitmap.height}")
 
-        saveProcessedBitmap(resizedBitmap) // debug
+        //saveProcessedBitmap(resizedBitmap) // debug
 
         val tensorImage = TensorImage(DataType.FLOAT32)
         tensorImage.load(resizedBitmap)
