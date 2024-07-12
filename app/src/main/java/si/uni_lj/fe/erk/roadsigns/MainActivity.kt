@@ -194,13 +194,20 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
         Box(modifier = Modifier.fillMaxSize()) {
             detectionResults.forEach { result ->
                 Canvas(modifier = Modifier.fillMaxSize()) {
-                    val scaleX = size.width / 0.49632353 * 0.9
-                    val scaleY = size.height * 0.9
+                    val scaleX = size.width
+                    val scaleY = size.height
+                    Log.d("CameraPreviewScreen", "Scalex = $scaleX, scaley = $scaleY")
+                    Log.d("CameraPreviewScreen", "result.x1 = ${result.x1}, result.x2 = ${result.x2}, result.y1 = ${result.y1}, result.y2 = ${result.y2}")
 
-                    val left = result.x1 * scaleX
-                    val top = result.y1 * scaleY
-                    val right = result.x2 * scaleX
-                    val bottom = result.y2 * scaleY
+                    val x1 = 1 - result.y2
+                    val y1 = result.x1
+                    val x2 = 1 - result.y1
+                    val y2 = result.x2
+
+                    val left = x1 * scaleX /1.15
+                    val top = y1 * scaleY
+                    val right = x2 * scaleX*1.15
+                    val bottom = y2 * scaleY
 
                     val previewAspectRatio = scaleX / scaleY
                     val modelAspectRatio = 1.0f

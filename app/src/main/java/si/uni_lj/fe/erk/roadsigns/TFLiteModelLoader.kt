@@ -12,6 +12,8 @@ import org.tensorflow.lite.support.image.ImageProcessor
 import org.tensorflow.lite.support.image.TensorImage
 import org.tensorflow.lite.support.tensorbuffer.TensorBuffer
 import java.io.BufferedReader
+import java.io.File
+import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
 import java.io.InputStreamReader
@@ -86,6 +88,8 @@ class TFLiteModelLoader(private val context: Context) {
         val resizedBitmap = Bitmap.createScaledBitmap(bitmap, tensorWidth, tensorHeight, false)
         Log.d("TFLiteModelLoader", "Resized Bitmap size: ${resizedBitmap.width}x${resizedBitmap.height}")
 
+        saveProcessedBitmap(resizedBitmap) // debug
+
         val tensorImage = TensorImage(DataType.FLOAT32)
         tensorImage.load(resizedBitmap)
         val processedImage = imageProcessor.process(tensorImage)
@@ -100,6 +104,21 @@ class TFLiteModelLoader(private val context: Context) {
 
         return bestBox(output.floatArray) ?: listOf()
     }
+
+    fun saveProcessedBitmap(bitmap: Bitmap) {
+        val filename = "processed_image_${System.currentTimeMillis()}.jpg"
+        val file = File(context.getExternalFilesDir(null), filename)
+        try {
+            val outputStream = FileOutputStream(file)
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
+            outputStream.flush()
+            outputStream.close()
+            Log.d("TFLiteModelLoader", "Processed image saved: ${file.absolutePath}")
+        } catch (e: IOException) {
+            Log.e("TFLiteModelLoader", "Failed to save processed image", e)
+        }
+    }
+
 
     private fun bestBox(array: FloatArray): List<BoundingBox>? {
         val boundingBoxes = mutableListOf<BoundingBox>()
