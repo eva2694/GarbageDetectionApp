@@ -30,7 +30,7 @@ class TFLiteModelLoader(private val context: Context) {
     private val imageProcessor = ImageProcessor.Builder()
         .add(NormalizeOp(INPUT_MEAN, INPUT_STANDARD_DEVIATION))
         .add(CastOp(INPUT_IMAGE_TYPE))
-        .build() // preprocess input
+        .build()
 
     companion object {
         private const val INPUT_MEAN = 0f
@@ -95,12 +95,12 @@ class TFLiteModelLoader(private val context: Context) {
         val processedImage = imageProcessor.process(tensorImage)
         val imageBuffer = processedImage.buffer
 
-        Log.d("TFLiteModelLoader", "Input Tensor Buffer: ${imageBuffer.array().joinToString()}")
+        //Log.d("TFLiteModelLoader", "Input Tensor Buffer: ${imageBuffer.array().joinToString()}")
 
         val output = TensorBuffer.createFixedSize(intArrayOf(1, numChannel, numElements), OUTPUT_IMAGE_TYPE)
         interpreter?.run(imageBuffer, output.buffer)
 
-        Log.d("TFLiteModelLoader", "Raw Output Tensor: ${output.floatArray.joinToString()}")
+        //Log.d("TFLiteModelLoader", "Raw Output Tensor: ${output.floatArray.joinToString()}")
 
         return bestBox(output.floatArray) ?: listOf()
     }

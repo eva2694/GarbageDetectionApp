@@ -128,7 +128,7 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
                         image.toBitmapCustom()
                     }
                     if (bitmap != null) {
-                        Log.d("CameraPreviewScreen", "Bitmap size: ${bitmap.width}x${bitmap.height}")
+                        //Log.d("CameraPreviewScreen", "Bitmap size: ${bitmap.width}x${bitmap.height}")
                         withContext(Dispatchers.Default) {
                             startTime.value = SystemClock.elapsedRealtimeNanos()
                             val cpuStartTime = Debug.threadCpuTimeNanos()
@@ -196,8 +196,8 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     val scaleX = size.width
                     val scaleY = size.height
-                    Log.d("CameraPreviewScreen", "Scalex = $scaleX, scaley = $scaleY")
-                    Log.d("CameraPreviewScreen", "result.x1 = ${result.x1}, result.x2 = ${result.x2}, result.y1 = ${result.y1}, result.y2 = ${result.y2}")
+                    //Log.d("CameraPreviewScreen", "ScaleX = $scaleX, scaleY = $scaleY")
+                    //Log.d("CameraPreviewScreen", "result.x1 = ${result.x1}, result.x2 = ${result.x2}, result.y1 = ${result.y1}, result.y2 = ${result.y2}")
 
                     val x1 = 1 - result.y2
                     val y1 = result.x1
@@ -215,9 +215,9 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
 
                     drawRect(
                         color = Color.Red,
-                        topLeft = androidx.compose.ui.geometry.Offset(left.toFloat(), top.toFloat()),
+                        topLeft = androidx.compose.ui.geometry.Offset(left.toFloat(), top),
                         size = androidx.compose.ui.geometry.Size((right - left).toFloat(),
-                            (bottom - top).toFloat()
+                            (bottom - top)
                         ),
                         style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f)
                     )
@@ -225,7 +225,7 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
                         drawText(
                             "${result.clsName} ${"%.2f".format(result.cnf)}",
                             left.toFloat(),
-                            (top - 10).toFloat(),
+                            (top - 10),
                             Paint().apply {
                                 color = android.graphics.Color.RED
                                 textSize = 30f
@@ -247,13 +247,13 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
                 val totalMemory = memoryInfo.value?.totalMem?.div(1024 * 1024)
 
                 Text("Model: YOLOv8s (float32, 44MB)", fontWeight = FontWeight.Bold, color = Color.Green)
-                Text("Detection Time: ${detectionTime} ms", fontWeight = FontWeight.Bold, color = Color.Green)
+                Text("Detection Time: $detectionTime ms", fontWeight = FontWeight.Bold, color = Color.Green)
                 Text("CPU Time: ${cpuUsage.value} ms", fontWeight = FontWeight.Bold, color = Color.Green)
                 Text("Frame Latency: ${frameLatency.value} ms", fontWeight = FontWeight.Bold, color = Color.Green)
                 Text("FPS: ${"%.2f".format(fps.value)}", fontWeight = FontWeight.Bold, color = Color.Green)
                 Text("Average Confidence: ${"%.2f".format(averageConfidence.value)}", fontWeight = FontWeight.Bold, color = Color.Green)
-                Text("Available Memory: ${usedMemory} MB", fontWeight = FontWeight.Bold, color = Color.Green)
-                Text("Total Memory: ${totalMemory} MB", fontWeight = FontWeight.Bold, color = Color.Green)
+                Text("Available Memory: $usedMemory MB", fontWeight = FontWeight.Bold, color = Color.Green)
+                Text("Total Memory: $totalMemory MB", fontWeight = FontWeight.Bold, color = Color.Green)
             }
         }
     }
