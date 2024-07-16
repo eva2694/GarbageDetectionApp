@@ -7,10 +7,9 @@ import android.util.Log
 import org.tensorflow.lite.support.image.ImageProcessor
 import org.tensorflow.lite.support.image.TensorImage
 import org.tensorflow.lite.task.core.BaseOptions
-import org.tensorflow.lite.task.gms.vision.detector.Detection
-import org.tensorflow.lite.task.gms.vision.detector.ObjectDetector
 import org.tensorflow.lite.gpu.CompatibilityList
-
+import org.tensorflow.lite.task.vision.detector.Detection
+import org.tensorflow.lite.task.vision.detector.ObjectDetector
 
 class EfficientDetModelLoader(
     var threshold: Float = 0.5f,
