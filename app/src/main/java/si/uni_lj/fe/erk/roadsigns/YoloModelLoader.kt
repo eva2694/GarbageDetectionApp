@@ -3,7 +3,6 @@ package si.uni_lj.fe.erk.roadsigns
 import android.content.Context
 import android.graphics.Bitmap
 import android.util.Log
-import com.google.android.gms.tflite.gpu.GpuDelegate
 import org.tensorflow.lite.DataType
 import org.tensorflow.lite.Interpreter
 import org.tensorflow.lite.support.common.FileUtil
@@ -19,8 +18,7 @@ import java.io.IOException
 import java.io.InputStream
 import java.io.InputStreamReader
 
-class TFLiteModelLoader(private val context: Context) {
-    private val modelPath = "YOLOv8s-float32.tflite"
+class YoloModelLoader(private val context: Context, modelPath: String) {
     private val labelPath = "labels.txt"
     private var interpreter: Interpreter? = null
     private var tensorWidth = 0
@@ -43,17 +41,15 @@ class TFLiteModelLoader(private val context: Context) {
     }
 
     init {
-        initializeInterpreter()
+        initializeInterpreter(modelPath)
         loadLabels()
     }
 
-    private fun initializeInterpreter() {
+    private fun initializeInterpreter(modelPath: String) {
         try {
             val model = FileUtil.loadMappedFile(context, modelPath)
             val options = Interpreter.Options()
             options.numThreads = 4
-
-
 
             interpreter = Interpreter(model, options)
 
@@ -65,10 +61,10 @@ class TFLiteModelLoader(private val context: Context) {
             numChannel = outputShape?.get(1) ?: 0
             numElements = outputShape?.get(2) ?: 0
 
-            Log.d("TFLiteModelLoader", "Model Input Shape: ${inputShape?.joinToString()}")
-            Log.d("TFLiteModelLoader", "Model Output Shape: ${outputShape?.joinToString()}")
+            Log.d("YoloModelLoader", "Model Input Shape: ${inputShape?.joinToString()}")
+            Log.d("YoloModelLoader", "Model Output Shape: ${outputShape?.joinToString()}")
         } catch (e: Exception) {
-            Log.e("TFLiteModelLoader", "Error initializing interpreter", e)
+            Log.e("YoloModelLoader", "Error initializing interpreter", e)
         }
     }
 
@@ -90,21 +86,15 @@ class TFLiteModelLoader(private val context: Context) {
 
     fun detect(bitmap: Bitmap): List<BoundingBox> {
         val resizedBitmap = Bitmap.createScaledBitmap(bitmap, tensorWidth, tensorHeight, false)
-        Log.d("TFLiteModelLoader", "Resized Bitmap size: ${resizedBitmap.width}x${resizedBitmap.height}")
-
-        //saveProcessedBitmap(resizedBitmap) // debug
+        Log.d("YoloModelLoader", "Resized Bitmap size: ${resizedBitmap.width}x${resizedBitmap.height}")
 
         val tensorImage = TensorImage(DataType.FLOAT32)
         tensorImage.load(resizedBitmap)
         val processedImage = imageProcessor.process(tensorImage)
         val imageBuffer = processedImage.buffer
 
-        //Log.d("TFLiteModelLoader", "Input Tensor Buffer: ${imageBuffer.array().joinToString()}")
-
         val output = TensorBuffer.createFixedSize(intArrayOf(1, numChannel, numElements), OUTPUT_IMAGE_TYPE)
         interpreter?.run(imageBuffer, output.buffer)
-
-        //Log.d("TFLiteModelLoader", "Raw Output Tensor: ${output.floatArray.joinToString()}")
 
         return bestBox(output.floatArray) ?: listOf()
     }
@@ -117,12 +107,11 @@ class TFLiteModelLoader(private val context: Context) {
             bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
             outputStream.flush()
             outputStream.close()
-            Log.d("TFLiteModelLoader", "Processed image saved: ${file.absolutePath}")
+            Log.d("YoloModelLoader", "Processed image saved: ${file.absolutePath}")
         } catch (e: IOException) {
-            Log.e("TFLiteModelLoader", "Failed to save processed image", e)
+            Log.e("YoloModelLoader", "Failed to save processed image", e)
         }
     }
-
 
     private fun bestBox(array: FloatArray): List<BoundingBox>? {
         val boundingBoxes = mutableListOf<BoundingBox>()
@@ -143,8 +132,8 @@ class TFLiteModelLoader(private val context: Context) {
 
             if (maxConf > CONFIDENCE_THRESHOLD) {
                 val clsName = labels[maxIdx]
-                val cx = array[c] // 0
-                val cy = array[c + numElements] // 1
+                val cx = array[c]
+                val cy = array[c + numElements]
                 val w = array[c + numElements * 2]
                 val h = array[c + numElements * 3]
                 val x1 = cx - (w / 2F)
@@ -169,7 +158,7 @@ class TFLiteModelLoader(private val context: Context) {
         if (boundingBoxes.isEmpty()) return null
 
         val nmsBoxes = applyNMS(boundingBoxes)
-        Log.d("TFLiteModelLoader", "Post-NMS Bounding Boxes: $nmsBoxes")
+        Log.d("YoloModelLoader", "Post-NMS Bounding Boxes: $nmsBoxes")
         return nmsBoxes
     }
 

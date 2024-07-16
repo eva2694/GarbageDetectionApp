@@ -77,6 +77,7 @@ dependencies {
 
 
     implementation("org.tensorflow:tensorflow-lite:2.14.0")
+    implementation("org.tensorflow:tensorflow-lite-gpu:2.14.0")
     implementation("org.tensorflow:tensorflow-lite-support:0.4.4")
     // Camera Dependencies
     val camerax_version = "1.4.0-beta02"
