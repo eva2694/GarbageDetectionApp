@@ -78,10 +78,15 @@ dependencies {
     implementation("com.google.android.gms:play-services-tflite-support:16.0.1")
 
 
-    implementation("org.tensorflow:tensorflow-lite:2.14.0")
-    implementation("org.tensorflow:tensorflow-lite-gpu:2.14.0")
+    implementation("org.tensorflow:tensorflow-lite:2.16.1")
+    implementation("org.tensorflow:tensorflow-lite-api:2.16.1")
+    implementation("org.tensorflow:tensorflow-lite-gpu:2.16.1")
+    implementation("org.tensorflow:tensorflow-lite-gpu-delegate-plugin:0.4.4")
+    implementation("org.tensorflow:tensorflow-lite-gpu-api:2.16.1")
     implementation("org.tensorflow:tensorflow-lite-support:0.4.4")
     implementation("org.tensorflow:tensorflow-lite-task-vision:0.3.1")
+    implementation("org.tensorflow:tensorflow-lite-select-tf-ops:2.16.1")
+
     // Camera Dependencies
     val camerax_version = "1.4.0-beta02"
     implementation("androidx.camera:camera-core:${camerax_version}")
