@@ -5,6 +5,8 @@ import android.graphics.Bitmap
 import android.util.Log
 import org.tensorflow.lite.DataType
 import org.tensorflow.lite.Interpreter
+import org.tensorflow.lite.gpu.CompatibilityList
+import org.tensorflow.lite.gpu.GpuDelegate
 import org.tensorflow.lite.support.common.FileUtil
 import org.tensorflow.lite.support.common.ops.CastOp
 import org.tensorflow.lite.support.common.ops.NormalizeOp
@@ -46,10 +48,17 @@ class YoloModelLoader(private val context: Context, modelPath: String) {
     }
 
     private fun initializeInterpreter(modelPath: String) {
+        val compatList = CompatibilityList()
         try {
+            val options = Interpreter.Options().apply {
+                if (compatList.isDelegateSupportedOnThisDevice) {
+                    val delegateOptions = compatList.bestOptionsForThisDevice
+                    this.addDelegate(GpuDelegate(delegateOptions))
+                } else {
+                    this.setNumThreads(4)
+                }
+            }
             val model = FileUtil.loadMappedFile(context, modelPath)
-            val options = Interpreter.Options()
-            options.numThreads = 4
 
             interpreter = Interpreter(model, options)
 
