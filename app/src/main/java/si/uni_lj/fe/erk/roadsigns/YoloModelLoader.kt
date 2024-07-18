@@ -20,6 +20,12 @@ import java.io.IOException
 import java.io.InputStream
 import java.io.InputStreamReader
 
+/**
+ * YoloModelLoader class for loading and running YOLO models using TensorFlow Lite.
+ *
+ * @property context Android context.
+ * @property modelPath Path to the model file.
+ */
 class YoloModelLoader(private val context: Context, modelPath: String) {
     private val labelPath = "labels.txt"
     private var interpreter: Interpreter? = null
@@ -47,6 +53,11 @@ class YoloModelLoader(private val context: Context, modelPath: String) {
         loadLabels()
     }
 
+    /**
+     * Initializes the TensorFlow Lite interpreter with the specified model path.
+     *
+     * @param modelPath Path to the yolo model file.
+     */
     private fun initializeInterpreter(modelPath: String) {
         val compatList = CompatibilityList()
         try {
@@ -70,11 +81,16 @@ class YoloModelLoader(private val context: Context, modelPath: String) {
             numChannel = outputShape?.get(1) ?: 0
             numElements = outputShape?.get(2) ?: 0
 
+            Log.d("YoloModelLoader", "Interpreter initialized successfully with model: $modelPath")
+
         } catch (e: Exception) {
             Log.e("YoloModelLoader", "Error initializing interpreter", e)
         }
     }
 
+    /**
+     * Loads the labels from the asset file.
+     */
     private fun loadLabels() {
         try {
             val inputStream: InputStream = context.assets.open(labelPath)
@@ -86,11 +102,18 @@ class YoloModelLoader(private val context: Context, modelPath: String) {
             }
             reader.close()
             inputStream.close()
+            Log.d("YoloModelLoader", "Labels loaded successfully from $labelPath")
         } catch (e: IOException) {
+            Log.e("YoloModelLoader", "Error loading labels", e)
             e.printStackTrace()
         }
     }
-
+    /**
+     * Detects objects in the given bitmap using the chosen YOLO model.
+     *
+     * @param bitmap Bitmap image to perform detection on.
+     * @return List of detected bounding boxes.
+     */
     fun detect(bitmap: Bitmap): List<BoundingBox> {
         val resizedBitmap = Bitmap.createScaledBitmap(bitmap, tensorWidth, tensorHeight, false)
 
@@ -105,7 +128,11 @@ class YoloModelLoader(private val context: Context, modelPath: String) {
         return bestBox(output.floatArray) ?: listOf()
     }
 
-    // for debugging
+    /**
+     * Saves the processed bitmap for debugging purposes. It is not used
+     *
+     * @param bitmap Bitmap image to save.
+     */
     fun saveProcessedBitmap(bitmap: Bitmap) {
         val filename = "processed_image_${System.currentTimeMillis()}.jpg"
         val file = File(context.getExternalFilesDir(null), filename)
@@ -114,11 +141,18 @@ class YoloModelLoader(private val context: Context, modelPath: String) {
             bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
             outputStream.flush()
             outputStream.close()
+            Log.d("YoloModelLoader", "Processed bitmap saved as $filename")
         } catch (e: IOException) {
             Log.e("YoloModelLoader", "Failed to save processed image", e)
         }
     }
 
+    /**
+     * Finds the best bounding boxes based on confidence threshold.
+     *
+     * @param array Array of float values representing detected objects.
+     * @return List of bounding boxes.
+     */
     private fun bestBox(array: FloatArray): List<BoundingBox>? {
         val boundingBoxes = mutableListOf<BoundingBox>()
 
@@ -164,9 +198,15 @@ class YoloModelLoader(private val context: Context, modelPath: String) {
         if (boundingBoxes.isEmpty()) return null
 
         val nmsBoxes = applyNMS(boundingBoxes)
+        Log.d("YoloModelLoader", "Non-max suppression applied, ${nmsBoxes.size} boxes selected")
         return nmsBoxes
     }
-
+    /**
+     * Applies non-maximum suppression to filter bounding boxes.
+     *
+     * @param boxes List of bounding boxes.
+     * @return List of filtered bounding boxes.
+     */
     private fun applyNMS(boxes: List<BoundingBox>): MutableList<BoundingBox> {
         val sortedBoxes = boxes.sortedByDescending { it.cnf }.toMutableList()
         val selectedBoxes = mutableListOf<BoundingBox>()
@@ -188,7 +228,13 @@ class YoloModelLoader(private val context: Context, modelPath: String) {
 
         return selectedBoxes
     }
-
+    /**
+     * Calculates the Intersection over Union (IoU) of two bounding boxes.
+     *
+     * @param box1 First bounding box.
+     * @param box2 Second bounding box.
+     * @return IoU value.
+     */
     private fun calculateIoU(box1: BoundingBox, box2: BoundingBox): Float {
         val x1 = maxOf(box1.x1, box2.x1)
         val y1 = maxOf(box1.y1, box2.y1)
@@ -200,6 +246,21 @@ class YoloModelLoader(private val context: Context, modelPath: String) {
         return intersectionArea / (box1Area + box2Area - intersectionArea)
     }
 
+    /**
+     * Data class representing a bounding box for detected objects.
+     *
+     * @property x1 Top-left x-coordinate.
+     * @property y1 Top-left y-coordinate.
+     * @property x2 Bottom-right x-coordinate.
+     * @property y2 Bottom-right y-coordinate.
+     * @property cx Center x-coordinate.
+     * @property cy Center y-coordinate.
+     * @property w Width of the bounding box.
+     * @property h Height of the bounding box.
+     * @property cnf Confidence score.
+     * @property cls Class index.
+     * @property clsName Class name.
+     */
     data class BoundingBox(
         val x1: Float,
         val y1: Float,

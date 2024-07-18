@@ -1,6 +1,7 @@
 package si.uni_lj.fe.erk.roadsigns
 
 import android.Manifest
+import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,6 +28,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+/**
+ * Composable function to request camera permission and display content based on the permission status.
+ *
+ * @param content The composable content to display if the camera permission is granted.
+ */
 @Composable
 fun RequestCameraPermission(content: @Composable () -> Unit) {
     val context = LocalContext.current
@@ -42,9 +48,11 @@ fun RequestCameraPermission(content: @Composable () -> Unit) {
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         hasCameraPermission = isGranted
+        Log.d("RequestCameraPermission", "Camera permission granted: $isGranted")
     }
 
     LaunchedEffect(key1 = true) {
+        Log.d("RequestCameraPermission", "Launching camera permission request")
         launcher.launch(Manifest.permission.CAMERA)
     }
 
@@ -56,6 +64,7 @@ fun RequestCameraPermission(content: @Composable () -> Unit) {
     if (hasCameraPermission) {
         content()
     } else {
+        Log.d("RequestCameraPermission", "Camera permission not granted, displaying warning message")
         Column(modifier = Modifier.padding(16.dp)) {
             BasicText(
                 text = "Camera permission is required for this app to work!",

@@ -59,6 +59,11 @@ import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.ExecutorService
 
+/**
+ * Composable function for displaying camera preview and road-sign detection results.
+ *
+ * @param cameraExecutor Executor service for running camera operations.
+ */
 @Composable
 fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
     val context = LocalContext.current
@@ -68,7 +73,7 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
 
     val coroutineScope = rememberCoroutineScope()
 
-    var selectedModelIndex by rememberSaveable { mutableStateOf(0) }
+    var selectedModelIndex by rememberSaveable { mutableIntStateOf(0) }
     val modelOptions = listOf(
         "YOLOv8s-float32.tflite", "YOLOv8s-float16.tflite", "YOLOv8n-float32.tflite",
         "YOLOv8n-float16.tflite", "EfficientDet-Lite0.tflite", "EfficientDet-Lite1.tflite"
@@ -93,9 +98,11 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
     val tfliteModelLoader = remember { mutableStateOf<YoloModelLoader?>(null) }
     val efficientDetModelLoader = remember { mutableStateOf<EfficientDetModelLoader?>(null) }
 
+    // launch model loading
     LaunchedEffect(currentModel.value) {
 
         if (currentModel.value.first.contains("EfficientDet")) {
+            // EfficientDet models
             efficientDetModelLoader.value = EfficientDetModelLoader(context = context, objectDetectorListener = object : EfficientDetModelLoader.DetectorListener {
                 override fun onError(error: String) {
                     Log.e("EfficientDetModelLoader", error)
@@ -121,6 +128,7 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
             }, currentModel = if (currentModel.value.first == "EfficientDet-Lite0.tflite") 1 else 2)
             tfliteModelLoader.value = null
         } else {
+            // YOLO models
             tfliteModelLoader.value = YoloModelLoader(context, currentModel.value.first)
             efficientDetModelLoader.value = null
         }
@@ -132,9 +140,9 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
     val cpuUsage = remember { mutableStateOf(0L) }
     val memoryInfo = remember { mutableStateOf<ActivityManager.MemoryInfo?>(null) }
     val frameLatency = remember { mutableStateOf(0L) }
-    val previousDetectionTime = remember { mutableStateOf(SystemClock.elapsedRealtimeNanos()) }
-    val totalInferenceTime = remember { mutableStateOf(0L) }
-    val inferenceCount = remember { mutableStateOf(0) }
+    val previousDetectionTime = remember { mutableLongStateOf(SystemClock.elapsedRealtimeNanos()) }
+    val totalInferenceTime = remember { mutableLongStateOf(0L) }
+    val inferenceCount = remember { mutableIntStateOf(0) }
     val averageConfidence = remember { mutableStateOf(0.0) }
     val fps = remember { mutableStateOf(0.0) }
 
@@ -148,6 +156,7 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
             onItemClick = { index ->
                 selectedModelIndex = index
                 currentModel.value = Triple(modelOptions[index], modelDatatypes[modelOptions[index]] ?: "Unknown", modelSizes[modelOptions[index]] ?: "Unknown")
+                Log.i("DropdownList", "${modelOptions[index]} has been selected.")
             }
         )
 
@@ -222,14 +231,17 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
             Box(modifier = Modifier.fillMaxSize()) {
                 detectionResults.forEach { result ->
                     Canvas(modifier = Modifier.fillMaxSize()) {
+
                         val scaleX = size.width
                         val scaleY = size.height
 
+                        // fixing coordinates because the preprocessed image was rotated 90°
                         val x1 = 1 - result.y2
                         val y1 = result.x1
                         val x2 = 1 - result.y1
                         val y2 = result.x2
 
+                        // scale adjustment (we got 1.15 by trial and error :) )
                         val left = x1 * scaleX / 1.15
                         val top = y1 * scaleY
                         val right = x2 * scaleX * 1.15
@@ -335,6 +347,13 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
     }
 }
 
+/**
+ * Detects objects in a bitmap image with YOLO model loader.
+ *
+ * @param bitmap The bitmap image to analyze.
+ * @param modelLoader The YOLO model loader to use for detection.
+ * @param onResults Callback to handle the detection results.
+ */
 fun detectObjects(
     bitmap: Bitmap,
     modelLoader: YoloModelLoader,
@@ -344,6 +363,26 @@ fun detectObjects(
     onResults(results)
 }
 
+/**
+ * Processes the detection results to log the performance metrics to csv.
+ *
+ * @param cpuEndTime The CPU end time in nanoseconds.
+ * @param cpuStartTime The CPU start time in nanoseconds.
+ * @param context The application context.
+ * @param selectedModel The selected model name.
+ * @param selectedDatatype The selected datatype.
+ * @param endTime Mutable state holding the end time in nanoseconds.
+ * @param startTime Mutable state holding the start time in nanoseconds.
+ * @param memoryInfo Mutable state holding the memory info.
+ * @param frameLatency Mutable state holding the frame latency in milliseconds.
+ * @param previousDetectionTime Mutable state holding the previous detection time in nanoseconds.
+ * @param totalInferenceTime Mutable state holding the total inference time in nanoseconds.
+ * @param inferenceCount Mutable state holding the inference count.
+ * @param averageConfidence Mutable state holding the average confidence.
+ * @param fps Mutable state holding the frames per second.
+ * @param results The list of detection results.
+ * @param modelSizes Map of model sizes.
+ */
 fun processResults(
     cpuEndTime: Long,
     cpuStartTime: Long,
@@ -405,6 +444,11 @@ fun processResults(
     }
 }
 
+/**
+ * function to convert an ImageProxy to a Bitmap.
+ *
+ * @return Converted Bitmap, or null if the conversion fails.
+ */
 fun ImageProxy.toBitmapCustom(): Bitmap? {
     val yBuffer = planes[0].buffer
     val uBuffer = planes[1].buffer
@@ -427,7 +471,25 @@ fun ImageProxy.toBitmapCustom(): Bitmap? {
     return BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
 }
 
-// csv path: /storage/emulated/0/Android/data/si.uni_lj.fe.erk.roadsigns/files
+// access the csv on the android device through a file manager!
+// path: /storage/emulated/0/Android/data/si.uni_lj.fe.erk.roadsigns/files
+
+/**
+ * Saves the detection data to a CSV file.
+ *
+ * @param model The name of the model used.
+ * @param datatype The datatype of the model.
+ * @param modelSize The size of the model.
+ * @param detectionTime The detection time in milliseconds.
+ * @param cpuTime The CPU time in milliseconds.
+ * @param frameLatency The frame latency in milliseconds.
+ * @param fps The frames per second.
+ * @param avgConfidence The average confidence of the detections.
+ * @param usedMemory The used memory in megabytes.
+ * @param totalMemory The total memory in megabytes.
+ * @param batteryLevel The battery level percentage.
+ * @param context The application context.
+ */
 fun saveDataToCsv(
     model: String,
     datatype: String,
@@ -451,12 +513,19 @@ fun saveDataToCsv(
         writer.append("$timestamp,$model,$datatype,$modelSize,$detectionTime,$cpuTime,$frameLatency,${"%.2f".format(fps)},${"%.2f".format(avgConfidence)},$usedMemory,$totalMemory,$batteryLevel\n")
         writer.flush()
         writer.close()
-        Log.d("saveDataToCsv", "Data saved: model=$model, datatype=$datatype, size=$modelSize, det time = $detectionTime, cpu time = $cpuTime, frame lat = $frameLatency, fps = ${"%.2f".format(fps)}, confidence = ${"%.2f".format(avgConfidence)}, used mem = $usedMemory, total mem = $totalMemory, bat = $batteryLevel")
+        Log.d("saveDataToCsv", "Data saved: model=$model, datatype=$datatype, size=$modelSize, detection time = $detectionTime, cpu time = $cpuTime, frame latency = $frameLatency, fps = ${"%.2f".format(fps)}, average confidence = ${"%.2f".format(avgConfidence)}, used memory = $usedMemory, total memory = $totalMemory, battery = $batteryLevel %")
     } catch (e: IOException) {
         e.printStackTrace()
     }
 }
-
+/**
+ * Composable function to display a dropdown list.
+ *
+ * @param itemList List of items to display in the dropdown.
+ * @param selectedIndex Index of the selected item.
+ * @param modifier Modifier for styling.
+ * @param onItemClick Callback to handle item click events.
+ */
 @Composable
 fun DropdownList(
     itemList: List<String>,

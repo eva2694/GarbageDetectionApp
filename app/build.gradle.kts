@@ -50,7 +50,7 @@ android {
 }
 
 dependencies {
-
+    // core AndroidX
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -59,6 +59,8 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+
+    // testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -67,17 +69,16 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 
+    // coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
     implementation("com.google.android.gms:play-services-tasks:18.0.1")
 
-    // TensorFlow Lite dependencies
+    // TensorFlow Lite
     implementation("com.google.android.gms:play-services-tflite-gpu:16.1.0")
     implementation("com.google.android.gms:play-services-tflite-java:16.0.1")
     implementation("com.google.android.gms:play-services-tflite-support:16.0.1")
-
-
     implementation("org.tensorflow:tensorflow-lite:2.16.1")
     implementation("org.tensorflow:tensorflow-lite-api:2.16.1")
     implementation("org.tensorflow:tensorflow-lite-gpu:2.16.1")
@@ -87,7 +88,7 @@ dependencies {
     implementation("org.tensorflow:tensorflow-lite-task-vision:0.3.1")
     implementation("org.tensorflow:tensorflow-lite-select-tf-ops:2.16.1")
 
-    // Camera Dependencies
+    // CameraX 
     val camerax_version = "1.4.0-beta02"
     implementation("androidx.camera:camera-core:${camerax_version}")
     implementation("androidx.camera:camera-camera2:${camerax_version}")
