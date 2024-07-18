@@ -70,8 +70,6 @@ class YoloModelLoader(private val context: Context, modelPath: String) {
             numChannel = outputShape?.get(1) ?: 0
             numElements = outputShape?.get(2) ?: 0
 
-            Log.d("YoloModelLoader", "Model Input Shape: ${inputShape?.joinToString()}")
-            Log.d("YoloModelLoader", "Model Output Shape: ${outputShape?.joinToString()}")
         } catch (e: Exception) {
             Log.e("YoloModelLoader", "Error initializing interpreter", e)
         }
@@ -95,7 +93,6 @@ class YoloModelLoader(private val context: Context, modelPath: String) {
 
     fun detect(bitmap: Bitmap): List<BoundingBox> {
         val resizedBitmap = Bitmap.createScaledBitmap(bitmap, tensorWidth, tensorHeight, false)
-        Log.d("YoloModelLoader", "Resized Bitmap size: ${resizedBitmap.width}x${resizedBitmap.height}")
 
         val tensorImage = TensorImage(DataType.FLOAT32)
         tensorImage.load(resizedBitmap)
@@ -108,6 +105,7 @@ class YoloModelLoader(private val context: Context, modelPath: String) {
         return bestBox(output.floatArray) ?: listOf()
     }
 
+    // for debugging
     fun saveProcessedBitmap(bitmap: Bitmap) {
         val filename = "processed_image_${System.currentTimeMillis()}.jpg"
         val file = File(context.getExternalFilesDir(null), filename)
@@ -116,7 +114,6 @@ class YoloModelLoader(private val context: Context, modelPath: String) {
             bitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
             outputStream.flush()
             outputStream.close()
-            Log.d("YoloModelLoader", "Processed image saved: ${file.absolutePath}")
         } catch (e: IOException) {
             Log.e("YoloModelLoader", "Failed to save processed image", e)
         }
@@ -167,7 +164,6 @@ class YoloModelLoader(private val context: Context, modelPath: String) {
         if (boundingBoxes.isEmpty()) return null
 
         val nmsBoxes = applyNMS(boundingBoxes)
-        Log.d("YoloModelLoader", "Post-NMS Bounding Boxes: $nmsBoxes")
         return nmsBoxes
     }
 

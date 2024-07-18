@@ -26,6 +26,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
@@ -37,11 +38,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
+import androidx.core.content.res.ResourcesCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -123,7 +128,7 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
 
     val startTime = remember { mutableStateOf(0L) }
     val endTime = remember { mutableStateOf(0L) }
-    var positiveDetectionTime = remember { mutableStateOf(0) }
+    val positiveDetectionTime = remember { mutableStateOf(0) }
     val cpuUsage = remember { mutableStateOf(0L) }
     val memoryInfo = remember { mutableStateOf<ActivityManager.MemoryInfo?>(null) }
     val frameLatency = remember { mutableStateOf(0L) }
@@ -169,7 +174,10 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
                                 val cpuStartTime = Debug.threadCpuTimeNanos()
 
                                 if (tfliteModelLoader.value != null) {
-                                    detectObjects(bitmap, tfliteModelLoader.value!!, currentModel.value.first, currentModel.value.second) { results ->
+                                    detectObjects(
+                                        bitmap,
+                                        tfliteModelLoader.value!!
+                                    ) { results ->
                                         detectionResults = results
                                         endTime.value = SystemClock.elapsedRealtimeNanos()
                                         val cpuEndTime = Debug.threadCpuTimeNanos()
@@ -228,19 +236,23 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
                         val bottom = y2 * scaleY
 
                         drawRect(
-                            color = Color.Red,
+                            color = Color(0xFFFFFF00),
                             topLeft = androidx.compose.ui.geometry.Offset(left.toFloat(), top),
                             size = androidx.compose.ui.geometry.Size((right - left).toFloat(), (bottom - top)),
-                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2f)
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 5f)
                         )
+
+                        val typeface = ResourcesCompat.getFont(context, R.font.font_bold)
+
                         drawContext.canvas.nativeCanvas.apply {
                             drawText(
                                 "${result.clsName} ${"%.2f".format(result.cnf)}",
                                 left.toFloat(),
                                 (top - 10),
                                 Paint().apply {
-                                    color = android.graphics.Color.RED
-                                    textSize = 30f
+                                    color = android.graphics.Color.parseColor("#FFFF00")
+                                    textSize = 40f
+                                    setTypeface(typeface)
                                 }
                             )
                         }
@@ -257,26 +269,77 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
                     val dT = (endTime.value - startTime.value) / 1_000_000
 
 
-                    if (dT < 1000 && dT > 0) positiveDetectionTime.value = dT.toInt()
+                    if (dT in 1..999) positiveDetectionTime.value = dT.toInt()
 
                     val usedMemory = memoryInfo.value?.availMem?.div(1024 * 1024)
                     val totalMemory = memoryInfo.value?.totalMem?.div(1024 * 1024)
 
-                    Text("Model: ${currentModel.value.first} (${currentModel.value.third})", fontWeight = FontWeight.Bold, color = Color.Green)
-                    Text("Detection Time: ${positiveDetectionTime.value} ms", fontWeight = FontWeight.Bold, color = Color.Green)
-                    Text("CPU Time: ${cpuUsage.value} ms", fontWeight = FontWeight.Bold, color = Color.Green)
-                    Text("Frame Latency: ${frameLatency.value} ms", fontWeight = FontWeight.Bold, color = Color.Green)
-                    Text("FPS: ${"%.2f".format(fps.value)}", fontWeight = FontWeight.Bold, color = Color.Green)
-                    Text("Average Confidence: ${"%.2f".format(averageConfidence.value)}", fontWeight = FontWeight.Bold, color = Color.Green)
-                    Text("Available Memory: $usedMemory MB", fontWeight = FontWeight.Bold, color = Color.Green)
-                    Text("Total Memory: $totalMemory MB", fontWeight = FontWeight.Bold, color = Color.Green)
+                    val customColor = Color(0xFF68F6C6)
+
+                    val customFontFamily = FontFamily(
+                        Font(R.font.font_regular, FontWeight.Normal),
+                        Font(R.font.font_bold, FontWeight.Bold)
+                    )
+
+                    Text(
+                        "Model: ${currentModel.value.first} (${currentModel.value.third})",
+                        fontWeight = FontWeight.Bold,
+                        color = customColor,
+                        style = TextStyle(fontFamily = customFontFamily, fontWeight = FontWeight.Bold)
+                    )
+                    Text(
+                        "Detection Time: ${positiveDetectionTime.value} ms",
+                        fontWeight = FontWeight.Bold,
+                        color = customColor,
+                        style = TextStyle(fontFamily = customFontFamily, fontWeight = FontWeight.Bold)
+                    )
+                    Text(
+                        "CPU Time: ${cpuUsage.value} ms",
+                        fontWeight = FontWeight.Bold,
+                        color = customColor,
+                        style = TextStyle(fontFamily = customFontFamily, fontWeight = FontWeight.Bold)
+                    )
+                    Text(
+                        "Frame Latency: ${frameLatency.value} ms",
+                        fontWeight = FontWeight.Bold,
+                        color = customColor,
+                        style = TextStyle(fontFamily = customFontFamily, fontWeight = FontWeight.Bold)
+                    )
+                    Text(
+                        "FPS: ${"%.2f".format(fps.value)}",
+                        fontWeight = FontWeight.Bold,
+                        color = customColor,
+                        style = TextStyle(fontFamily = customFontFamily, fontWeight = FontWeight.Bold)
+                    )
+                    Text(
+                        "Average Confidence: ${"%.2f".format(averageConfidence.value)}",
+                        fontWeight = FontWeight.Bold,
+                        color = customColor,
+                        style = TextStyle(fontFamily = customFontFamily, fontWeight = FontWeight.Bold)
+                    )
+                    Text(
+                        "Available Memory: $usedMemory MB",
+                        fontWeight = FontWeight.Bold,
+                        color = customColor,
+                        style = TextStyle(fontFamily = customFontFamily, fontWeight = FontWeight.Bold)
+                    )
+                    Text(
+                        "Total Memory: $totalMemory MB",
+                        fontWeight = FontWeight.Bold,
+                        color = customColor,
+                        style = TextStyle(fontFamily = customFontFamily, fontWeight = FontWeight.Bold)
+                    )
                 }
             }
         }
     }
 }
 
-fun detectObjects(bitmap: Bitmap, modelLoader: YoloModelLoader, modelName: String, datatype: String, onResults: (List<YoloModelLoader.BoundingBox>) -> Unit) {
+fun detectObjects(
+    bitmap: Bitmap,
+    modelLoader: YoloModelLoader,
+    onResults: (List<YoloModelLoader.BoundingBox>) -> Unit
+) {
     val results = modelLoader.detect(bitmap)
     onResults(results)
 }
@@ -395,57 +458,83 @@ fun saveDataToCsv(
 }
 
 @Composable
-fun DropdownList(itemList: List<String>, selectedIndex: Int, modifier: Modifier, onItemClick: (Int) -> Unit) {
+fun DropdownList(
+    itemList: List<String>,
+    selectedIndex: Int,
+    modifier: Modifier,
+    onItemClick: (Int) -> Unit
+) {
     var showDropdown by rememberSaveable { mutableStateOf(false) }
     val scrollState = rememberScrollState()
 
+    val customFontFamily = FontFamily(
+        Font(R.font.font_regular, FontWeight.Normal),
+        Font(R.font.font_bold, FontWeight.Bold)
+    )
+
     Column(
-        modifier = Modifier,
+        modifier = Modifier
+            .fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Box(
             modifier = modifier
-                .background(Color.Red)
-                .clickable { showDropdown = true },
+                .background(Color(0xFFFF809B), shape = RoundedCornerShape(8.dp))
+                .clickable { showDropdown = true }
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = itemList[selectedIndex], modifier = Modifier.padding(3.dp))
+            Text(
+                text = itemList[selectedIndex],
+                modifier = Modifier.padding(3.dp),
+                style = TextStyle(
+                    fontFamily = customFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            )
         }
 
-        Box {
-            if (showDropdown) {
-                Popup(
-                    alignment = Alignment.TopCenter,
-                    properties = PopupProperties(
-                        excludeFromSystemGesture = true,
-                    ),
-                    onDismissRequest = { showDropdown = false }
+        if (showDropdown) {
+            Popup(
+                alignment = Alignment.TopCenter,
+                properties = PopupProperties(
+                    excludeFromSystemGesture = true,
+                ),
+                onDismissRequest = { showDropdown = false }
+            ) {
+                Column(
+                    modifier = modifier
+                        .fillMaxWidth()
+                        .verticalScroll(state = scrollState)
+                        .border(width = 1.dp, color = Color.Gray, shape = RoundedCornerShape(8.dp))
+                        .background(Color.White, shape = RoundedCornerShape(8.dp)),
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Column(
-                        modifier = modifier
-                            .heightIn(max = 200.dp)
-                            .verticalScroll(state = scrollState)
-                            .border(width = 1.dp, color = Color.Gray)
-                            .background(Color.White),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        itemList.forEachIndexed { index, item ->
-                            if (index != 0) {
-                                HorizontalDivider(thickness = 1.dp, color = Color.LightGray)
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        onItemClick(index)
-                                        showDropdown = false
-                                    }
-                                    .background(if (selectedIndex == index) Color.LightGray else Color.White),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(text = item, modifier = Modifier.padding(8.dp))
-                            }
+                    itemList.forEachIndexed { index, item ->
+                        if (index != 0) {
+                            HorizontalDivider(thickness = 1.dp, color = Color.LightGray)
+                        }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onItemClick(index)
+                                    showDropdown = false
+                                }
+                                .background(if (selectedIndex == index) Color.LightGray else Color.White),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = item,
+                                modifier = Modifier.padding(8.dp),
+                                style = TextStyle(
+                                    fontFamily = customFontFamily,
+                                    fontWeight = FontWeight.Normal,
+                                    color = Color(0xFF375676)
+                                )
+                            )
                         }
                     }
                 }

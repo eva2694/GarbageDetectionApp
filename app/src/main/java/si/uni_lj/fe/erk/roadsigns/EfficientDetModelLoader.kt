@@ -12,10 +12,10 @@ import org.tensorflow.lite.task.vision.detector.Detection
 import org.tensorflow.lite.task.vision.detector.ObjectDetector
 
 class EfficientDetModelLoader(
-    var threshold: Float = 0.5f,
-    var numThreads: Int = 2,
-    var maxResults: Int = 3,
-    var currentDelegate: Int = 0,
+    private var threshold: Float = 0.5f,
+    private var numThreads: Int = 2,
+    private var maxResults: Int = 3,
+    private var currentDelegate: Int = 0,
     var currentModel: Int = 0,
     val context: Context,
     val objectDetectorListener: DetectorListener?
@@ -27,7 +27,7 @@ class EfficientDetModelLoader(
         setupObjectDetector()
     }
 
-    fun setupObjectDetector() {
+    private fun setupObjectDetector() {
         val optionsBuilder = ObjectDetector.ObjectDetectorOptions.builder()
             .setScoreThreshold(threshold)
             .setMaxResults(maxResults)
@@ -35,7 +35,7 @@ class EfficientDetModelLoader(
         val baseOptionsBuilder = BaseOptions.builder().setNumThreads(numThreads)
         val compatList = CompatibilityList()
         when (currentDelegate) {
-            0 -> { } // Default
+            0 -> { }
             1 -> {
                 if (compatList.isDelegateSupportedOnThisDevice) {
                     baseOptionsBuilder.useGpu()
