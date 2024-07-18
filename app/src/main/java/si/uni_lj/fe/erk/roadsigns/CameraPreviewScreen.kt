@@ -2,12 +2,15 @@ package si.uni_lj.fe.erk.roadsigns
 
 import android.app.ActivityManager
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.ImageFormat
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.YuvImage
+import android.os.BatteryManager
 import android.os.Debug
 import android.os.SystemClock
 import android.util.Log
@@ -57,6 +60,7 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
     var detectionResults by remember { mutableStateOf<List<YoloModelLoader.BoundingBox>>(listOf()) }
+
     val coroutineScope = rememberCoroutineScope()
 
     var selectedModelIndex by rememberSaveable { mutableStateOf(0) }
@@ -70,12 +74,23 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
         "EfficientDet-Lite0.tflite" to "4.4MB", "EfficientDet-Lite1.tflite" to "5.8MB"
     )
 
-    val selectedModel = modelOptions[selectedModelIndex]
+    val modelDatatypes = mapOf(
+        "YOLOv8s-float32.tflite" to "float32", "YOLOv8s-float16.tflite" to "float16",
+        "YOLOv8n-float32.tflite" to "float32", "YOLOv8n-float16.tflite" to "float16",
+        "EfficientDet-Lite0.tflite" to "int8", "EfficientDet-Lite1.tflite" to "int8"
+    )
+
+    val currentModel = remember {
+        mutableStateOf(Triple(modelOptions[selectedModelIndex], modelDatatypes[modelOptions[selectedModelIndex]] ?: "Unknown", modelSizes[modelOptions[selectedModelIndex]] ?: "Unknown"))
+    }
+
+
     val tfliteModelLoader = remember { mutableStateOf<YoloModelLoader?>(null) }
     val efficientDetModelLoader = remember { mutableStateOf<EfficientDetModelLoader?>(null) }
 
-    LaunchedEffect(selectedModel) {
-        if (selectedModel.contains("EfficientDet")) {
+    LaunchedEffect(currentModel.value) {
+
+        if (currentModel.value.first.contains("EfficientDet")) {
             efficientDetModelLoader.value = EfficientDetModelLoader(context = context, objectDetectorListener = object : EfficientDetModelLoader.DetectorListener {
                 override fun onError(error: String) {
                     Log.e("EfficientDetModelLoader", error)
@@ -98,16 +113,17 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
                         )
                     } ?: listOf()
                 }
-            }, currentModel = if (selectedModel == "EfficientDet-Lite0.tflite") 1 else 2)
+            }, currentModel = if (currentModel.value.first == "EfficientDet-Lite0.tflite") 1 else 2)
             tfliteModelLoader.value = null
         } else {
-            tfliteModelLoader.value = YoloModelLoader(context, selectedModel)
+            tfliteModelLoader.value = YoloModelLoader(context, currentModel.value.first)
             efficientDetModelLoader.value = null
         }
     }
 
     val startTime = remember { mutableStateOf(0L) }
     val endTime = remember { mutableStateOf(0L) }
+    var positiveDetectionTime = remember { mutableStateOf(0) }
     val cpuUsage = remember { mutableStateOf(0L) }
     val memoryInfo = remember { mutableStateOf<ActivityManager.MemoryInfo?>(null) }
     val frameLatency = remember { mutableStateOf(0L) }
@@ -121,9 +137,12 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
         DropdownList(
             itemList = modelOptions,
             selectedIndex = selectedModelIndex,
-            modifier = Modifier.width(200.dp).padding(16.dp),
+            modifier = Modifier
+                .width(200.dp)
+                .padding(16.dp),
             onItemClick = { index ->
                 selectedModelIndex = index
+                currentModel.value = Triple(modelOptions[index], modelDatatypes[modelOptions[index]] ?: "Unknown", modelSizes[modelOptions[index]] ?: "Unknown")
             }
         )
 
@@ -148,18 +167,25 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
                             withContext(Dispatchers.Default) {
                                 startTime.value = SystemClock.elapsedRealtimeNanos()
                                 val cpuStartTime = Debug.threadCpuTimeNanos()
+
                                 if (tfliteModelLoader.value != null) {
-                                    detectObjects(bitmap, tfliteModelLoader.value!!) { results ->
+                                    detectObjects(bitmap, tfliteModelLoader.value!!, currentModel.value.first, currentModel.value.second) { results ->
                                         detectionResults = results
                                         endTime.value = SystemClock.elapsedRealtimeNanos()
                                         val cpuEndTime = Debug.threadCpuTimeNanos()
-                                        processResults(cpuEndTime, cpuStartTime, context, selectedModel, endTime, startTime, memoryInfo, frameLatency, previousDetectionTime, totalInferenceTime, inferenceCount, averageConfidence, fps, results, modelSizes)
+                                        cpuUsage.value = (cpuEndTime - cpuStartTime) / 1_000_000
+                                        if (endTime.value > startTime.value) {
+                                            processResults(cpuEndTime, cpuStartTime, context, currentModel.value.first, currentModel.value.second, endTime, startTime, memoryInfo, frameLatency, previousDetectionTime, totalInferenceTime, inferenceCount, averageConfidence, fps, results, modelSizes)
+                                        }
                                     }
                                 } else if (efficientDetModelLoader.value != null) {
                                     efficientDetModelLoader.value!!.detect(bitmap)
                                     endTime.value = SystemClock.elapsedRealtimeNanos()
                                     val cpuEndTime = Debug.threadCpuTimeNanos()
-                                    processResults(cpuEndTime, cpuStartTime, context, selectedModel, endTime, startTime, memoryInfo, frameLatency, previousDetectionTime, totalInferenceTime, inferenceCount, averageConfidence, fps, detectionResults, modelSizes)
+                                    cpuUsage.value = (cpuEndTime - cpuStartTime) / 1_000_000
+                                    if (endTime.value > startTime.value) {
+                                        processResults(cpuEndTime, cpuStartTime, context, currentModel.value.first, currentModel.value.second, endTime, startTime, memoryInfo, frameLatency, previousDetectionTime, totalInferenceTime, inferenceCount, averageConfidence, fps, detectionResults, modelSizes)
+                                    }
                                 }
                             }
                         } else {
@@ -226,14 +252,18 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
                         .align(Alignment.BottomCenter)
                         .padding(16.dp)
                 ) {
-                    val dT = (endTime.value - startTime.value) / 1_000_000 // in ms
-                    var detectionTime = 0
-                    if (dT < 1000) detectionTime = dT.toInt()
+
+
+                    val dT = (endTime.value - startTime.value) / 1_000_000
+
+
+                    if (dT < 1000 && dT > 0) positiveDetectionTime.value = dT.toInt()
+
                     val usedMemory = memoryInfo.value?.availMem?.div(1024 * 1024)
                     val totalMemory = memoryInfo.value?.totalMem?.div(1024 * 1024)
 
-                    Text("Model: $selectedModel (${modelSizes[selectedModel]})", fontWeight = FontWeight.Bold, color = Color.Green)
-                    Text("Detection Time: $detectionTime ms", fontWeight = FontWeight.Bold, color = Color.Green)
+                    Text("Model: ${currentModel.value.first} (${currentModel.value.third})", fontWeight = FontWeight.Bold, color = Color.Green)
+                    Text("Detection Time: ${positiveDetectionTime.value} ms", fontWeight = FontWeight.Bold, color = Color.Green)
                     Text("CPU Time: ${cpuUsage.value} ms", fontWeight = FontWeight.Bold, color = Color.Green)
                     Text("Frame Latency: ${frameLatency.value} ms", fontWeight = FontWeight.Bold, color = Color.Green)
                     Text("FPS: ${"%.2f".format(fps.value)}", fontWeight = FontWeight.Bold, color = Color.Green)
@@ -246,7 +276,29 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
     }
 }
 
-fun processResults(cpuEndTime: Long, cpuStartTime: Long, context: Context, selectedModel: String, endTime: MutableState<Long>, startTime: MutableState<Long>, memoryInfo: MutableState<ActivityManager.MemoryInfo?>, frameLatency: MutableState<Long>, previousDetectionTime: MutableState<Long>, totalInferenceTime: MutableState<Long>, inferenceCount: MutableState<Int>, averageConfidence: MutableState<Double>, fps: MutableState<Double>, results: List<YoloModelLoader.BoundingBox>, modelSizes: Map<String, String>) {
+fun detectObjects(bitmap: Bitmap, modelLoader: YoloModelLoader, modelName: String, datatype: String, onResults: (List<YoloModelLoader.BoundingBox>) -> Unit) {
+    val results = modelLoader.detect(bitmap)
+    onResults(results)
+}
+
+fun processResults(
+    cpuEndTime: Long,
+    cpuStartTime: Long,
+    context: Context,
+    selectedModel: String,
+    selectedDatatype: String,
+    endTime: MutableState<Long>,
+    startTime: MutableState<Long>,
+    memoryInfo: MutableState<ActivityManager.MemoryInfo?>,
+    frameLatency: MutableState<Long>,
+    previousDetectionTime: MutableState<Long>,
+    totalInferenceTime: MutableState<Long>,
+    inferenceCount: MutableState<Int>,
+    averageConfidence: MutableState<Double>,
+    fps: MutableState<Double>,
+    results: List<YoloModelLoader.BoundingBox>,
+    modelSizes: Map<String, String>
+) {
     val cpuUsage = (cpuEndTime - cpuStartTime) / 1_000_000
     val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
     val memInfo = ActivityManager.MemoryInfo()
@@ -264,19 +316,82 @@ fun processResults(cpuEndTime: Long, cpuStartTime: Long, context: Context, selec
     fps.value = framesPerSecond.toDouble()
 
     val modelSize = modelSizes[selectedModel] ?: "Unknown"
-    saveDataToCsv(
-        model = selectedModel,
-        datatype = "float32",
-        modelSize = modelSize,
-        detectionTime = (endTime.value - startTime.value) / 1_000_000,
-        cpuTime = cpuUsage,
-        frameLatency = frameLatency.value,
-        fps = framesPerSecond,
-        avgConfidence = averageConfidence.value,
-        usedMemory = memInfo.availMem / (1024 * 1024),
-        totalMemory = memInfo.totalMem / (1024 * 1024),
-        context = context
-    )
+
+    val batteryIntent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+    val level = batteryIntent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+    val scale = batteryIntent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
+    val batteryPct = level / scale.toFloat() * 100
+
+    val detectionTime = (endTime.value - startTime.value) / 1_000_000
+
+    if (detectionTime > 0) {
+        saveDataToCsv(
+            model = selectedModel,
+            datatype = selectedDatatype,
+            modelSize = modelSize,
+            detectionTime = detectionTime,
+            cpuTime = cpuUsage,
+            frameLatency = frameLatency.value,
+            fps = framesPerSecond,
+            avgConfidence = averageConfidence.value,
+            usedMemory = memInfo.availMem / (1024 * 1024),
+            totalMemory = memInfo.totalMem / (1024 * 1024),
+            batteryLevel = batteryPct,
+            context = context
+        )
+    }
+}
+
+fun ImageProxy.toBitmapCustom(): Bitmap? {
+    val yBuffer = planes[0].buffer
+    val uBuffer = planes[1].buffer
+    val vBuffer = planes[2].buffer
+
+    val ySize = yBuffer.remaining()
+    val uSize = uBuffer.remaining()
+    val vSize = vBuffer.remaining()
+
+    val nv21 = ByteArray(ySize + uSize + vSize)
+
+    yBuffer.get(nv21, 0, ySize)
+    vBuffer.get(nv21, ySize, vSize)
+    uBuffer.get(nv21, ySize + vSize, uSize)
+
+    val yuvImage = YuvImage(nv21, ImageFormat.NV21, width, height, null)
+    val out = ByteArrayOutputStream()
+    yuvImage.compressToJpeg(Rect(0, 0, width, height), 100, out)
+    val imageBytes = out.toByteArray()
+    return BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+}
+
+// csv path: /storage/emulated/0/Android/data/si.uni_lj.fe.erk.roadsigns/files
+fun saveDataToCsv(
+    model: String,
+    datatype: String,
+    modelSize: String,
+    detectionTime: Long,
+    cpuTime: Long,
+    frameLatency: Long,
+    fps: Float,
+    avgConfidence: Double,
+    usedMemory: Long,
+    totalMemory: Long,
+    batteryLevel: Float,
+    context: Context
+) {
+    val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+    val fileName = "detection_data.csv"
+    val file = File(context.getExternalFilesDir(null), fileName)
+
+    try {
+        val writer = FileWriter(file, true)
+        writer.append("$timestamp,$model,$datatype,$modelSize,$detectionTime,$cpuTime,$frameLatency,${"%.2f".format(fps)},${"%.2f".format(avgConfidence)},$usedMemory,$totalMemory,$batteryLevel\n")
+        writer.flush()
+        writer.close()
+        Log.d("saveDataToCsv", "Data saved: model=$model, datatype=$datatype, size=$modelSize, det time = $detectionTime, cpu time = $cpuTime, frame lat = $frameLatency, fps = ${"%.2f".format(fps)}, confidence = ${"%.2f".format(avgConfidence)}, used mem = $usedMemory, total mem = $totalMemory, bat = $batteryLevel")
+    } catch (e: IOException) {
+        e.printStackTrace()
+    }
 }
 
 @Composable
@@ -336,60 +451,5 @@ fun DropdownList(itemList: List<String>, selectedIndex: Int, modifier: Modifier,
                 }
             }
         }
-    }
-}
-
-fun ImageProxy.toBitmapCustom(): Bitmap? {
-    val yBuffer = planes[0].buffer
-    val uBuffer = planes[1].buffer
-    val vBuffer = planes[2].buffer
-
-    val ySize = yBuffer.remaining()
-    val uSize = uBuffer.remaining()
-    val vSize = vBuffer.remaining()
-
-    val nv21 = ByteArray(ySize + uSize + vSize)
-
-    yBuffer.get(nv21, 0, ySize)
-    vBuffer.get(nv21, ySize, vSize)
-    uBuffer.get(nv21, ySize + vSize, uSize)
-
-    val yuvImage = YuvImage(nv21, ImageFormat.NV21, width, height, null)
-    val out = ByteArrayOutputStream()
-    yuvImage.compressToJpeg(Rect(0, 0, width, height), 100, out)
-    val imageBytes = out.toByteArray()
-    return BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
-}
-
-fun detectObjects(bitmap: Bitmap, modelLoader: YoloModelLoader, onResults: (List<YoloModelLoader.BoundingBox>) -> Unit) {
-    val results = modelLoader.detect(bitmap)
-    onResults(results)
-}
-
-// csv path: /storage/emulated/0/Android/data/si.uni_lj.fe.erk.roadsigns/files
-fun saveDataToCsv(
-    model: String,
-    datatype: String,
-    modelSize: String,
-    detectionTime: Long,
-    cpuTime: Long,
-    frameLatency: Long,
-    fps: Float,
-    avgConfidence: Double,
-    usedMemory: Long,
-    totalMemory: Long,
-    context: Context
-) {
-    val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
-    val fileName = "detection_data.csv"
-    val file = File(context.getExternalFilesDir(null), fileName)
-
-    try {
-        val writer = FileWriter(file, true)
-        writer.append("$timestamp,$model,$datatype,$modelSize,$detectionTime,$cpuTime,$frameLatency,${"%.2f".format(fps)},${"%.2f".format(avgConfidence)},$usedMemory,$totalMemory\n")
-        writer.flush()
-        writer.close()
-    } catch (e: IOException) {
-        e.printStackTrace()
     }
 }
