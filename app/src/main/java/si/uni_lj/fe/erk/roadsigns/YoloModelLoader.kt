@@ -24,7 +24,7 @@ import java.io.InputStreamReader
  * YoloModelLoader class for loading and running YOLO models using TensorFlow Lite.
  *
  * @property context Android context.
- * @property modelPath Path to the model file.
+ * @param modelPath Path to the model file.
  */
 class YoloModelLoader(private val context: Context, modelPath: String) {
     private val labelPath = "labels.txt"
