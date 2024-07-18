@@ -76,7 +76,25 @@ Results from the EfficientDet-Lite1 model:
 2. **Select Model**: Choose the desired model from the dropdown list.
 3. **Start Detection**: Begin real-time detection by pointing your camera at road signs (crosswalk sign, stop sign, traffic light, speed limit).
 4. **View Results**: Observe the detection results along with performance metrics on the screen.
-5. **DATA**: Get the data from the csv file. It will be generated in the emulated storage on your android device.
+5. **DATA**: Get the data from the csv file. It will be generated in the emulated storage on your android device. Path : `/storage/emulated/0/Android/data/package.name
+/files`
+
+## How to Install the Road Sign Detection App
+
+1. **Download the APK**:
+   - [Download the app](https://unilj-my.sharepoint.com/:u:/g/personal/eu2694_student_uni-lj_si/EcJoQAxUH5hLjlaOl9c4yZwBv6MybmCWUYytClPMQoc-Rw?e=1cCayO) from OneDrive.
+
+2. **Enable Installation from Unknown Sources**:
+   - Go to `Settings` > `Security`.
+   - Enable `Install unknown apps` or `Unknown sources`.
+   - If you are using Android 8.0 or higher, you may need to grant this permission to the app from which you are installing the APK.
+
+3. **Install the APK**:
+   - Open the downloaded APK file.
+   - Follow the on-screen instructions to complete the installation.
+
+4. **Open the App**:
+   - Once installed, open the app.
 
 ## Acknowledgements
 
