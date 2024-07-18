@@ -48,22 +48,25 @@ The models were trained and evaluated using the [Road Signs Dataset](https://mak
 
 Example of the app detecting road signs in real-time:
 
-![App Interface](images/app1.jpg)
-![App Interface](images/app2.jpg)
+<img src="images/app1.jpg" width="500">
+<img src="images/app2.jpg" width="500">
 
 #### Model Predictions from Colab
 
 Results from the YOLOv8n model:
 
-![YOLOv8 Prediction](images/yv8n.png)
+<img src="images/yv8n.png" width="500">
+
 
 Results from the EfficientDet-Lite0 model:
 
-![EfficientDet-Lite Prediction](images/edl0.jpg)
+<img src="images/edl0.jpg" width="500">
+
 
 Results from the EfficientDet-Lite1 model:
 
-![EfficientDet-Lite Prediction](images/edl1.png)
+<img src="images/edl1.png" width="500">
+
 
 
 
