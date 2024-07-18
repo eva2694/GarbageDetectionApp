@@ -28,10 +28,10 @@ The models were trained and evaluated using the [Road Signs Dataset](https://mak
 ### Training Details
 
 - **YOLOv8 Models**: Trained using the Ultralytics YOLOv8 framework.
-  - [YOLOv8 Training Notebook](https://colab.research.google.com/dummy_yolo_training_link)
+  - [YOLOv8 Training Notebook](https://colab.research.google.com/drive/1tnxdMDlnv-Z1Zd6O5ikOV5n2d3ps9eus?usp=sharing)
 
 - **EfficientDet-Lite Models**: Trained using TensorFlow Lite Model Maker.
-  - [EfficientDet-Lite Training Notebook](https://colab.research.google.com/dummy_efficientdet_training_link)
+  - [EfficientDet-Lite Training Notebook](https://colab.research.google.com/drive/1SKUNCGkUPdTBRm_S7ptD8BpXR74bWBzh?usp=sharing)
 
 ### Evaluation Results
 
@@ -48,27 +48,36 @@ The models were trained and evaluated using the [Road Signs Dataset](https://mak
 
 Example of the app detecting road signs in real-time:
 
-![App Interface](path/to/your/app/interface/image.jpg)
+![App Interface](images/app1.jpg)
+![App Interface](images/app2.jpg)
 
 #### Model Predictions from Colab
 
-Results from the YOLOv8 model:
+Results from the YOLOv8n model:
 
-![YOLOv8 Prediction](path/to/your/yolov8/prediction/image.jpg)
+![YOLOv8 Prediction](images/yv8n.png)
 
-Results from the EfficientDet-Lite model:
+Results from the EfficientDet-Lite0 model:
 
-![EfficientDet-Lite Prediction](path/to/your/efficientdet/prediction/image.jpg)
+![EfficientDet-Lite Prediction](images/edl0.jpg)
+
+Results from the EfficientDet-Lite1 model:
+
+![EfficientDet-Lite Prediction](images/edl1.png)
+
+
 
 ## How to Use
 
 1. **Launch the App**: Open the app and grant camera permissions.
 2. **Select Model**: Choose the desired model from the dropdown list.
-3. **Start Detection**: Begin real-time detection by pointing your camera at road signs.
+3. **Start Detection**: Begin real-time detection by pointing your camera at road signs (crosswalk sign, stop sign, traffic light, speed limit).
 4. **View Results**: Observe the detection results along with performance metrics on the screen.
+5. **DATA**: Get the data from the csv file. It will be generated in the emulated storage on your android device.
 
 ## Acknowledgements
 
-- [Roboflow](https://roboflow.com) for dataset preprocessing.
-- [Ultralytics](https://ultralytics.com) for the YOLOv8 framework.
-- [Google Colab](https://colab.research.google.com) for providing the environment to train and evaluate the models.
+- [Roboflow](https://roboflow.com) 
+- [Ultralytics](https://ultralytics.com) 
+- [Google Colab](https://colab.research.google.com)
+- [TFLite](https://www.tensorflow.org/lite/android)
