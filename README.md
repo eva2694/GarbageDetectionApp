@@ -96,7 +96,9 @@ Results from the EfficientDet-Lite1 model:
 
 4. **Open the App**:
    - Once installed, open the app.
-  
+
+## Data Analisys
+[Colab notebook analyzing the captured data](https://colab.research.google.com/drive/1_WDqE_luSTlf5e3eTPmC3kMBU9fxR0WW?usp=sharing).
 
 ## Acknowledgements
 
