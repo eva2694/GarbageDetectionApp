@@ -14,6 +14,7 @@ import android.os.BatteryManager
 import android.os.Debug
 import android.os.SystemClock
 import android.util.Log
+import android.view.WindowManager
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
@@ -72,7 +73,10 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
     var detectionResults by remember { mutableStateOf<List<YoloModelLoader.BoundingBox>>(listOf()) }
     val coroutineScope = rememberCoroutineScope()
-    var selectedModelIndex by rememberSaveable { mutableIntStateOf(0) }
+    var selectedModelIndex by rememberSaveable { mutableIntStateOf(0) } // to change when measuring
+
+    val displayRotation = (context.getSystemService(Context.WINDOW_SERVICE) as WindowManager)
+        .defaultDisplay.rotation
 
     val modelOptions = listOf(
         "YOLOv8s-float32.tflite",
@@ -167,8 +171,16 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
                 .padding(16.dp),
             onItemClick = { index ->
                 selectedModelIndex = index
-                currentModel.value = Triple(modelOptions[index], modelDatatypes[modelOptions[index]] ?: "Unknown", modelSizes[modelOptions[index]] ?: "Unknown")
+                currentModel.value = Triple(
+                    modelOptions[index],
+                    modelDatatypes[modelOptions[index]] ?: "Unknown",
+                    modelSizes[modelOptions[index]] ?: "Unknown"
+                )
                 Log.i("DropdownList", "${modelOptions[index]} has been selected.")
+            },
+            resetInferenceTime = {
+                totalInferenceTime.longValue = 0L
+                inferenceCount.intValue = 0
             }
         )
 
@@ -181,6 +193,7 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
 
                 val imageAnalysis = ImageAnalysis.Builder()
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                    .setTargetRotation(displayRotation)
                     .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
                     .build()
 
@@ -252,10 +265,10 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
                         val x2 = 1 - result.y1
                         val y2 = result.x2
 
-                        // scale adjustment (we got 1.15 by trial and error :) )
-                        val left = x1 * scaleX / 1.15
+                        // scale adjustment (we got 1.1 by trial and error :) )
+                        val left = x1 * scaleX / 1.1
                         val top = y1 * scaleY
-                        val right = x2 * scaleX * 1.15
+                        val right = x2 * scaleX * 1.1
                         val bottom = y2 * scaleY
 
                         drawRect(
@@ -294,8 +307,10 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
 
                     if (dT in 1..999) positiveDetectionTime.value = dT.toInt()
 
-                    val usedMemory = memoryInfo.value?.availMem?.div(1024 * 1024)
+                    val availableMemory = memoryInfo.value?.availMem?.div(1024 * 1024)
                     val totalMemory = memoryInfo.value?.totalMem?.div(1024 * 1024)
+
+                    val usedMemory = totalMemory?.minus(availableMemory!!) // RAM
 
                     val customColor = Color(0xFF68F6C6)
 
@@ -316,6 +331,7 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
                         color = customColor,
                         style = TextStyle(fontFamily = customFontFamily, fontWeight = FontWeight.Bold)
                     )
+                    /*
                     Text(
                         "CPU Time: ${cpuUsage.value} ms",
                         fontWeight = FontWeight.Bold,
@@ -327,7 +343,7 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
                         fontWeight = FontWeight.Bold,
                         color = customColor,
                         style = TextStyle(fontFamily = customFontFamily, fontWeight = FontWeight.Bold)
-                    )
+                    )*/
                     Text(
                         "FPS: ${"%.2f".format(fps.value)}",
                         fontWeight = FontWeight.Bold,
@@ -341,17 +357,19 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
                         style = TextStyle(fontFamily = customFontFamily, fontWeight = FontWeight.Bold)
                     )
                     Text(
-                        "Available Memory: $usedMemory MB",
+                        "RAM usage: $usedMemory MB",
                         fontWeight = FontWeight.Bold,
                         color = customColor,
                         style = TextStyle(fontFamily = customFontFamily, fontWeight = FontWeight.Bold)
                     )
+                    /*
                     Text(
                         "Total Memory: $totalMemory MB",
                         fontWeight = FontWeight.Bold,
                         color = customColor,
                         style = TextStyle(fontFamily = customFontFamily, fontWeight = FontWeight.Bold)
                     )
+                     */
                 }
             }
         }
@@ -430,10 +448,13 @@ fun processResults(
 
     val modelSize = modelSizes[selectedModel] ?: "Unknown"
 
-    val batteryIntent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-    val level = batteryIntent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
-    val scale = batteryIntent?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
-    val batteryPct = level / scale.toFloat() * 100
+    val batteryManager = context.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+
+    val batteryPct = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+    val instantCurrent = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
+    val avgCurrent = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_AVERAGE)
+    val batteryCapacity = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CHARGE_COUNTER)
+    val batteryVoltage = getBatteryVoltage(context)
 
     val detectionTime = (endTime.value - startTime.value) / 1_000_000
 
@@ -450,6 +471,10 @@ fun processResults(
             usedMemory = memInfo.availMem / (1024 * 1024),
             totalMemory = memInfo.totalMem / (1024 * 1024),
             batteryLevel = batteryPct,
+            instantCurrent = instantCurrent,
+            avgCurrent = avgCurrent,
+            batteryCapacity = batteryCapacity,
+            batteryVoltage = batteryVoltage,
             context = context
         )
     }
@@ -503,7 +528,7 @@ fun ImageProxy.toBitmapCustom(): Bitmap? {
  */
 fun saveDataToCsv(
     model: String,
-    datatype: String,
+    datatype: String, // quantization of parameters
     modelSize: String,
     detectionTime: Long,
     cpuTime: Long,
@@ -512,7 +537,11 @@ fun saveDataToCsv(
     avgConfidence: Double,
     usedMemory: Long,
     totalMemory: Long,
-    batteryLevel: Float,
+    batteryLevel: Int, // %
+    instantCurrent: Int, // μA
+    avgCurrent: Int, // μA
+    batteryCapacity: Int, //μAh
+    batteryVoltage: Int, // mV
     context: Context
 ) {
     val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
@@ -520,8 +549,9 @@ fun saveDataToCsv(
     val file = File(context.getExternalFilesDir(null), fileName)
 
     try {
+
         val writer = FileWriter(file, true)
-        writer.append("$timestamp,$model,$datatype,$modelSize,$detectionTime,$cpuTime,$frameLatency,${"%.2f".format(fps)},${"%.2f".format(avgConfidence)},$usedMemory,$totalMemory,$batteryLevel\n")
+        writer.append("$timestamp,$model,$datatype,$modelSize,$detectionTime,$cpuTime,$frameLatency,${"%.3f".format(fps)},${"%.3f".format(avgConfidence)},$usedMemory,$totalMemory, $batteryLevel, $instantCurrent, $avgCurrent, $batteryCapacity, $batteryVoltage\n")
         writer.flush()
         writer.close()
         Log.d("saveDataToCsv", "Data saved: model=$model, datatype=$datatype, size=$modelSize, detection time = $detectionTime, cpu time = $cpuTime, frame latency = $frameLatency, fps = ${"%.2f".format(fps)}, average confidence = ${"%.2f".format(avgConfidence)}, used memory = $usedMemory, total memory = $totalMemory, battery = $batteryLevel %")
@@ -542,7 +572,8 @@ fun DropdownList(
     itemList: List<String>,
     selectedIndex: Int,
     modifier: Modifier,
-    onItemClick: (Int) -> Unit
+    onItemClick: (Int) -> Unit,
+    resetInferenceTime: () -> Unit
 ) {
     var showDropdown by rememberSaveable { mutableStateOf(false) }
     val scrollState = rememberScrollState()
@@ -601,6 +632,7 @@ fun DropdownList(
                                 .fillMaxWidth()
                                 .clickable {
                                     onItemClick(index)
+                                    resetInferenceTime()
                                     showDropdown = false
                                 }
                                 .background(if (selectedIndex == index) Color.LightGray else Color.White),
@@ -621,4 +653,9 @@ fun DropdownList(
             }
         }
     }
+}
+
+fun getBatteryVoltage(context: Context): Int {
+    val batteryIntent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+    return batteryIntent?.getIntExtra(BatteryManager.EXTRA_VOLTAGE, -1) ?: -1
 }
