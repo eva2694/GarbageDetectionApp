@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "si.uni_lj.fe.erk.roadsigns"
+    namespace = "si.uni_lj.fe.erk.garbage"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "si.uni_lj.fe.erk.roadsigns"
+        applicationId = "si.uni_lj.fe.erk.garbage"
         minSdk = 24
         targetSdk = 34
         versionCode = 1

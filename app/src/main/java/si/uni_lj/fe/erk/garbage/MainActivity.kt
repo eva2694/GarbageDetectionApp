@@ -1,4 +1,4 @@
-package si.uni_lj.fe.erk.roadsigns
+package si.uni_lj.fe.erk.garbage
 
 import android.os.Bundle
 import android.util.Log
@@ -6,7 +6,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import si.uni_lj.fe.erk.roadsigns.ui.theme.RoadSignsTheme
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import com.google.android.gms.tflite.java.TfLite
@@ -14,6 +13,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import si.uni_lj.fe.erk.garbage.ui.theme.GarbageTheme
 
 /**
  * Main activity of the application.
@@ -35,7 +35,7 @@ class MainActivity : ComponentActivity() {
                 TfLite.initialize(this@MainActivity).await()
                 Log.d("MainActivity", "TensorFlow Lite initialized successfully")
                 setContent {
-                    RoadSignsTheme {
+                    GarbageTheme {
                         Surface(color = MaterialTheme.colorScheme.background) {
                             RequestCameraPermission {
                                 CameraPreviewScreen(cameraExecutor)

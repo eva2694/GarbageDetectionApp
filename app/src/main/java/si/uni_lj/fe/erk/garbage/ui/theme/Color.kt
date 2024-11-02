@@ -1,4 +1,4 @@
-package si.uni_lj.fe.erk.roadsigns.ui.theme
+package si.uni_lj.fe.erk.garbage.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

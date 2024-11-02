@@ -1,4 +1,4 @@
-package si.uni_lj.fe.erk.roadsigns
+package si.uni_lj.fe.erk.garbage
 
 import android.Manifest
 import android.util.Log

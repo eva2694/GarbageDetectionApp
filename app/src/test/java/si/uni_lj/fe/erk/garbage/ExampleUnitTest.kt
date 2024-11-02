@@ -1,4 +1,4 @@
-package si.uni_lj.fe.erk.roadsigns
+package si.uni_lj.fe.erk.garbage
 
 import org.junit.Test
 

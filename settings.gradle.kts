@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "RoadSigns"
+rootProject.name = "Garbage"
 include(":app")

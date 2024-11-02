@@ -1,4 +1,4 @@
-package si.uni_lj.fe.erk.roadsigns
+package si.uni_lj.fe.erk.garbage
 
 import android.app.ActivityManager
 import android.content.Context
@@ -60,38 +60,50 @@ import java.util.*
 import java.util.concurrent.ExecutorService
 
 /**
- * Composable function for displaying camera preview and road-sign detection results.
+ * Composable function for displaying camera preview and garbage detection results.
  *
  * @param cameraExecutor Executor service for running camera operations.
  */
 @Composable
 fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
+
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
     var detectionResults by remember { mutableStateOf<List<YoloModelLoader.BoundingBox>>(listOf()) }
-
     val coroutineScope = rememberCoroutineScope()
-
     var selectedModelIndex by rememberSaveable { mutableIntStateOf(0) }
+
     val modelOptions = listOf(
-        "YOLOv8s-float32.tflite", "YOLOv8s-float16.tflite", "YOLOv8n-float32.tflite",
-        "YOLOv8n-float16.tflite", "EfficientDet-Lite0.tflite", "EfficientDet-Lite1.tflite"
+        "YOLOv8s-float32.tflite",
+        "YOLOv8s-float16.tflite",
+        "YOLOv8n-float32.tflite",
+        "YOLOv8n-float16.tflite",
+        "EfficientDet-Lite0.tflite",
+        "EfficientDet-Lite1.tflite"
     )
     val modelSizes = mapOf(
-        "YOLOv8s-float32.tflite" to "44MB", "YOLOv8s-float16.tflite" to "22MB",
-        "YOLOv8n-float32.tflite" to "12MB", "YOLOv8n-float16.tflite" to "6MB",
-        "EfficientDet-Lite0.tflite" to "4.4MB", "EfficientDet-Lite1.tflite" to "5.8MB"
+        "YOLOv8s-float32.tflite" to "44MB",
+        "YOLOv8s-float16.tflite" to "22MB",
+        "YOLOv8n-float32.tflite" to "12MB",
+        "YOLOv8n-float16.tflite" to "6MB",
+        "EfficientDet-Lite0.tflite" to "4.4MB",
+        "EfficientDet-Lite1.tflite" to "5.8MB"
     )
 
     val modelDatatypes = mapOf(
-        "YOLOv8s-float32.tflite" to "float32", "YOLOv8s-float16.tflite" to "float16",
-        "YOLOv8n-float32.tflite" to "float32", "YOLOv8n-float16.tflite" to "float16",
-        "EfficientDet-Lite0.tflite" to "int8", "EfficientDet-Lite1.tflite" to "int8"
+        "YOLOv8s-float32.tflite" to "float32",
+        "YOLOv8s-float16.tflite" to "float16",
+        "YOLOv8n-float32.tflite" to "float32",
+        "YOLOv8n-float16.tflite" to "float16",
+        "EfficientDet-Lite0.tflite" to "int8",
+        "EfficientDet-Lite1.tflite" to "int8"
     )
 
     val currentModel = remember {
-        mutableStateOf(Triple(modelOptions[selectedModelIndex], modelDatatypes[modelOptions[selectedModelIndex]] ?: "Unknown", modelSizes[modelOptions[selectedModelIndex]] ?: "Unknown"))
+        mutableStateOf(Triple(modelOptions[selectedModelIndex],
+        modelDatatypes[modelOptions[selectedModelIndex]] ?: "Unknown",
+        modelSizes[modelOptions[selectedModelIndex]] ?: "Unknown"))
     }
 
 
@@ -472,7 +484,7 @@ fun ImageProxy.toBitmapCustom(): Bitmap? {
 }
 
 // access the csv on the android device through a file manager!
-// path: /storage/emulated/0/Android/data/si.uni_lj.fe.erk.roadsigns/files
+// path: /storage/emulated/0/Android/data/si.uni_lj.fe.erk.garbage/files
 
 /**
  * Saves the detection data to a CSV file.
