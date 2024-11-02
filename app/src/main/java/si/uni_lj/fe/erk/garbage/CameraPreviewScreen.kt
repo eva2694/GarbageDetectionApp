@@ -107,7 +107,7 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
     }
 
 
-    val tfliteModelLoader = remember { mutableStateOf<YoloModelLoader?>(null) }
+    val yoloModelLoader = remember { mutableStateOf<YoloModelLoader?>(null) }
     val efficientDetModelLoader = remember { mutableStateOf<EfficientDetModelLoader?>(null) }
 
     // launch model loading
@@ -138,10 +138,10 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
                     } ?: listOf()
                 }
             }, currentModel = if (currentModel.value.first == "EfficientDet-Lite0.tflite") 1 else 2)
-            tfliteModelLoader.value = null
+            yoloModelLoader.value = null
         } else {
             // YOLO models
-            tfliteModelLoader.value = YoloModelLoader(context, currentModel.value.first)
+            yoloModelLoader.value = YoloModelLoader(context, currentModel.value.first)
             efficientDetModelLoader.value = null
         }
     }
@@ -194,10 +194,10 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
                                 startTime.value = SystemClock.elapsedRealtimeNanos()
                                 val cpuStartTime = Debug.threadCpuTimeNanos()
 
-                                if (tfliteModelLoader.value != null) {
+                                if (yoloModelLoader.value != null) {
                                     detectObjects(
                                         bitmap,
-                                        tfliteModelLoader.value!!
+                                        yoloModelLoader.value!!
                                     ) { results ->
                                         detectionResults = results
                                         endTime.value = SystemClock.elapsedRealtimeNanos()
@@ -243,7 +243,6 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
             Box(modifier = Modifier.fillMaxSize()) {
                 detectionResults.forEach { result ->
                     Canvas(modifier = Modifier.fillMaxSize()) {
-
                         val scaleX = size.width
                         val scaleY = size.height
 
