@@ -71,7 +71,8 @@ class EfficientDetModelLoader(
 
         val modelName = when (currentModel) {
             1 -> "EfficientDet-Lite0.tflite"
-            2 -> "EfficientDet-Lite1.tflite"
+            2 -> "EfficientDet-Lite2.tflite"
+            3 -> "EfficientDet-Lite4.tflite"
             else -> "EfficientDet-Lite0.tflite"
         }
 

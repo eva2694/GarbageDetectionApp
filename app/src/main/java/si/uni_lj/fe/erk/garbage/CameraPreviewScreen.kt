@@ -79,29 +79,29 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
         .defaultDisplay.rotation
 
     val modelOptions = listOf(
-        "YOLOv8s-float32.tflite",
-        "YOLOv8s-float16.tflite",
-        "YOLOv8n-float32.tflite",
-        "YOLOv8n-float16.tflite",
+        "YOLOv11n.tflite",
+        "YOLOv11s.tflite",
+        "YOLOv11m.tflite",
         "EfficientDet-Lite0.tflite",
-        "EfficientDet-Lite1.tflite"
+        "EfficientDet-Lite2.tflite",
+        "EfficientDet-Lite4.tflite"
     )
     val modelSizes = mapOf(
-        "YOLOv8s-float32.tflite" to "44MB",
-        "YOLOv8s-float16.tflite" to "22MB",
-        "YOLOv8n-float32.tflite" to "12MB",
-        "YOLOv8n-float16.tflite" to "6MB",
-        "EfficientDet-Lite0.tflite" to "4.4MB",
-        "EfficientDet-Lite1.tflite" to "5.8MB"
+        "YOLOv11n.tflite" to "3MB",
+        "YOLOv11s.tflite" to "10MB",
+        "YOLOv11m.tflite" to "20MB",
+        "EfficientDet-Lite0.tflite" to "4MB",
+        "EfficientDet-Lite2.tflite" to "7MB",
+        "EfficientDet-Lite4.tflite" to "20MB"
     )
 
     val modelDatatypes = mapOf(
-        "YOLOv8s-float32.tflite" to "float32",
-        "YOLOv8s-float16.tflite" to "float16",
-        "YOLOv8n-float32.tflite" to "float32",
-        "YOLOv8n-float16.tflite" to "float16",
+        "YOLOv11n.tflite" to "int8",
+        "YOLOv11s.tflite" to "int8",
+        "YOLOv11m.tflite" to "int8",
         "EfficientDet-Lite0.tflite" to "int8",
-        "EfficientDet-Lite1.tflite" to "int8"
+        "EfficientDet-Lite2.tflite" to "int8",
+        "EfficientDet-Lite4.tflite" to "int8"
     )
 
     val currentModel = remember {
@@ -141,7 +141,7 @@ fun CameraPreviewScreen(cameraExecutor: ExecutorService) {
                         )
                     } ?: listOf()
                 }
-            }, currentModel = if (currentModel.value.first == "EfficientDet-Lite0.tflite") 1 else 2)
+            }, currentModel = if (currentModel.value.first == "EfficientDet-Lite2.tflite") 2 else if (currentModel.value.first == "EfficientDet-Lite4.tflite") 3 else 1)
             yoloModelLoader.value = null
         } else {
             // YOLO models

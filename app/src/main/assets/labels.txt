@@ -1,4 +1,6 @@
-crosswalk
-speedlimit
-stop
-trafficlight
+BIODEGRADABLE
+CARDBOARD
+GLASS
+METAL
+PAPER
+PLASTIC
